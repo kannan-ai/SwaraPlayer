@@ -274,42 +274,13 @@ fun FolderGridItem(folder: FolderItem, onClick: () -> Unit) {
             .clickable(onClick = onClick),
     ) {
         Box(contentAlignment = Alignment.TopEnd) {
-            // Folder Silhouette or Preview Thumbnail
-            if (folder.previewVideoUri != null) {
-                Box(
-                    modifier = Modifier
-                        .size(68.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(colors.surface),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    VideoThumbnailImage(
-                        uri = folder.previewVideoUri,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(Color.Black.copy(alpha = 0.35f)),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Folder,
-                            contentDescription = null,
-                            tint = Color.Cyan,
-                            modifier = Modifier.size(36.dp),
-                        )
-                    }
-                }
-            } else {
-                Icon(
-                    imageVector = Icons.Default.Folder,
-                    contentDescription = null,
-                    tint = colors.folderIconTint,
-                    modifier = Modifier.size(68.dp),
-                )
-            }
+            // Clean Folder Silhouette Icon (without thumbnail overlay)
+            Icon(
+                imageVector = Icons.Default.Folder,
+                contentDescription = folder.name,
+                tint = if (folder.isHighlighted) colors.accentOrange else colors.folderIconTint,
+                modifier = Modifier.size(68.dp),
+            )
 
             // Red Notification Badge
             if (folder.hasNewBadge) {
