@@ -1,0 +1,349 @@
+package com.example.swaraplayer.ui
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.example.swaraplayer.data.VideoFile
+import com.example.swaraplayer.player.PlayerViewModel
+import com.example.swaraplayer.ui.components.LibraryTopBar
+import com.example.swaraplayer.ui.components.VideoThumbnailImage
+import com.example.swaraplayer.ui.components.formatTime
+import com.example.swaraplayer.ui.theme.FolderItem
+import com.example.swaraplayer.ui.theme.LocalAppColors
+import com.example.swaraplayer.ui.theme.VideoItem
+
+@Composable
+fun VideoLibraryScreen(
+    viewModel: PlayerViewModel,
+    onSelectVideo: (VideoFile) -> Unit,
+    onNavigateBack: () -> Unit,
+) {
+    val colors = LocalAppColors.current
+    val allVideos by viewModel.videosList.collectAsState()
+    val foldersList by viewModel.foldersList.collectAsState()
+    val selectedFolder by viewModel.selectedFolder.collectAsState()
+
+    // Map domain models to UI items
+    val recentVideosUI = remember(allVideos) {
+        allVideos.take(8).map { video ->
+            VideoItem(
+                id = video.id,
+                title = video.title,
+                durationText = formatTime(video.durationMs),
+                uri = video.uri,
+                thumbnailUri = video.uri.toString(),
+            )
+        }
+    }
+
+    val folderItemsUI = remember(foldersList) {
+        foldersList.map { folder ->
+            FolderItem(
+                name = folder.name,
+                videoCount = folder.videoCount,
+                previewVideoUri = folder.previewVideoUri,
+                hasNewBadge = folder.videoCount > 3,
+                isHighlighted = folder.name.contains("series", ignoreCase = true) || folder.name.contains("Download", ignoreCase = true),
+            )
+        }
+    }
+
+    if (selectedFolder != null) {
+        val folderVideos = remember(selectedFolder, allVideos) {
+            allVideos.filter { it.folderName == selectedFolder!!.name }.map { video ->
+                VideoItem(
+                    id = video.id,
+                    title = video.title,
+                    durationText = formatTime(video.durationMs),
+                    uri = video.uri,
+                    thumbnailUri = video.uri.toString(),
+                )
+            }
+        }
+        FolderVideosScreen(
+            folderName = selectedFolder!!.name,
+            videos = folderVideos,
+            onVideoClick = { videoItem ->
+                allVideos.find { it.id == videoItem.id }?.let { onSelectVideo(it) }
+            },
+            onBack = { viewModel.selectFolder(null) },
+        )
+        return
+    }
+
+    Scaffold(
+        topBar = {
+            LibraryTopBar(
+                title = "Video Library",
+                onBack = onNavigateBack,
+                onHome = { viewModel.selectFolder(null) },
+                onHelp = {},
+                onSearch = {},
+                onSort = {},
+            )
+        },
+        containerColor = colors.background,
+    ) { innerPadding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding),
+        ) {
+            // Recently Played Section
+            if (recentVideosUI.isNotEmpty()) {
+                item {
+                    Text(
+                        text = "Recently Played",
+                        color = colors.textPrimary,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 12.dp),
+                    )
+                }
+
+                item {
+                    LazyRow(
+                        contentPadding = PaddingValues(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        items(recentVideosUI) { videoItem ->
+                            RecentVideoCard(
+                                video = videoItem,
+                                onClick = {
+                                    allVideos.find { it.id == videoItem.id }?.let { onSelectVideo(it) }
+                                },
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Folders Header
+            item {
+                Text(
+                    text = "Folders",
+                    color = colors.textPrimary,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(start = 16.dp, top = 24.dp, bottom = 16.dp),
+                )
+            }
+
+            // 3-Column Folders Grid
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 1200.dp),
+                ) {
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(3),
+                        userScrollEnabled = false,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(20.dp),
+                    ) {
+                        items(folderItemsUI) { folderItem ->
+                            FolderGridItem(
+                                folder = folderItem,
+                                onClick = {
+                                    foldersList.find { it.name == folderItem.name }?.let { viewModel.selectFolder(it) }
+                                },
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun RecentVideoCard(video: VideoItem, onClick: () -> Unit) {
+    val colors = LocalAppColors.current
+
+    Column(
+        modifier = Modifier
+            .width(170.dp)
+            .clickable(onClick = onClick),
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(96.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(colors.surface),
+        ) {
+            VideoThumbnailImage(
+                uri = video.uri,
+                id = video.id,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
+
+            // Duration Pill
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(4.dp)
+                    .background(colors.background.copy(alpha = 0.8f), RoundedCornerShape(2.dp))
+                    .padding(horizontal = 4.dp, vertical = 1.dp),
+            ) {
+                Text(
+                    text = video.durationText,
+                    color = colors.textPrimary,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Medium,
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(6.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.Top,
+        ) {
+            Text(
+                text = video.title,
+                color = colors.textPrimary,
+                fontSize = 12.sp,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            Icon(
+                Icons.Default.MoreVert,
+                contentDescription = "Options",
+                tint = colors.textSecondary,
+                modifier = Modifier.size(16.dp),
+            )
+        }
+    }
+}
+
+@Composable
+fun FolderGridItem(folder: FolderItem, onClick: () -> Unit) {
+    val colors = LocalAppColors.current
+
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+    ) {
+        Box(contentAlignment = Alignment.TopEnd) {
+            // Folder Silhouette or Preview Thumbnail
+            if (folder.previewVideoUri != null) {
+                Box(
+                    modifier = Modifier
+                        .size(68.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(colors.surface),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    VideoThumbnailImage(
+                        uri = folder.previewVideoUri,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.Black.copy(alpha = 0.35f)),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Folder,
+                            contentDescription = null,
+                            tint = Color.Cyan,
+                            modifier = Modifier.size(36.dp),
+                        )
+                    }
+                }
+            } else {
+                Icon(
+                    imageVector = Icons.Default.Folder,
+                    contentDescription = null,
+                    tint = colors.folderIconTint,
+                    modifier = Modifier.size(68.dp),
+                )
+            }
+
+            // Red Notification Badge
+            if (folder.hasNewBadge) {
+                Box(
+                    modifier = Modifier
+                        .size(17.dp)
+                        .background(colors.badgeRed, CircleShape),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = "N",
+                        color = Color.White,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        Text(
+            text = folder.name,
+            color = if (folder.isHighlighted) colors.accentOrange else colors.textPrimary,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Medium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+
+        Text(
+            text = "${folder.videoCount} videos",
+            color = colors.textSecondary,
+            fontSize = 10.sp,
+        )
+    }
+}
