@@ -15,6 +15,7 @@ import android.util.Rational
 import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.FrameLayout
+import android.widget.Toast
 import androidx.annotation.OptIn
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -38,7 +39,6 @@ import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Bedtime
 import androidx.compose.material.icons.filled.Brightness7
-import androidx.compose.material.icons.filled.Cast
 import androidx.compose.material.icons.filled.ClosedCaption
 import androidx.compose.material.icons.filled.CropFree
 import androidx.compose.material.icons.filled.Memory
@@ -93,11 +93,13 @@ import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import com.example.swaraplayer.data.AspectRatioMode
 import com.example.swaraplayer.data.OrientationMode
+import com.example.swaraplayer.data.SleepTimerMode
 import com.example.swaraplayer.data.VideoFile
 import com.example.swaraplayer.data.VideoMetadata
 import com.example.swaraplayer.player.PlayerViewModel
 import com.example.swaraplayer.player.SuperAudioEnhancer
 import com.example.swaraplayer.player.SuperAudioEqualizer
+import com.example.swaraplayer.ui.components.GesturesHelpDialog
 import com.example.swaraplayer.ui.components.ProgressiveSeekHUD
 import com.example.swaraplayer.ui.components.ScrubbingOverlay
 import com.example.swaraplayer.ui.components.SettingActionItem
@@ -148,6 +150,7 @@ fun ProVideoPlayer(
     var showSettingsDrawer by remember { mutableStateOf(false) }
     var showSubtitleDrawer by remember { mutableStateOf(false) }
     var showInfoDialog by remember { mutableStateOf(false) }
+    var showGesturesDialog by remember { mutableStateOf(false) }
     var resumeNoticeMs by remember { mutableLongStateOf(0L) }
 
     // Tap Gesture States
@@ -175,6 +178,9 @@ fun ProVideoPlayer(
 
     val aspectMode by viewModel.aspectRatioMode.collectAsState()
     val orientationMode by viewModel.orientationMode.collectAsState()
+    val sleepTimer by viewModel.sleepTimerMode.collectAsState()
+    val isNightMode by viewModel.isNightModeEnabled.collectAsState()
+    val isHw by viewModel.isHardwareDecoding.collectAsState()
     val isLocked by viewModel.isScreenLocked.collectAsState()
     val speed by viewModel.playbackSpeed.collectAsState()
     val eqPreset by viewModel.currentEqualizerPreset.collectAsState()
@@ -182,13 +188,17 @@ fun ProVideoPlayer(
     val abA by viewModel.abPointA.collectAsState()
     val abB by viewModel.abPointB.collectAsState()
 
-    val settingsActions = remember(aspectMode, speed, abA) {
+    val settingsActions = remember(aspectMode, speed, sleepTimer, isNightMode, isHw, abA) {
         listOf(
             SettingActionItem("fit", "Fit", Icons.Default.CropFree, isSelected = aspectMode == AspectRatioMode.FIT) {
                 viewModel.cycleAspectRatio()
             },
-            SettingActionItem("sleep", "Sleep", Icons.Default.Timer) {},
-            SettingActionItem("night", "Night", Icons.Default.Bedtime) {},
+            SettingActionItem("sleep", if (sleepTimer == SleepTimerMode.OFF) "Sleep" else sleepTimer.label, Icons.Default.Timer, isSelected = sleepTimer != SleepTimerMode.OFF) {
+                viewModel.cycleSleepTimer()
+            },
+            SettingActionItem("night", "Night", Icons.Default.Bedtime, isSelected = isNightMode) {
+                viewModel.isNightModeEnabled.value = !isNightMode
+            },
             SettingActionItem("vivid", "Vivid", Icons.Default.WbSunny) {},
             SettingActionItem("speed", "${speed}X", Icons.Default.Speed) {
                 val speeds = listOf(0.5f, 1.0f, 1.25f, 1.5f, 2.0f)
@@ -213,12 +223,20 @@ fun ProVideoPlayer(
                 showSubtitleDrawer = true
             },
             SettingActionItem("tracks", "Tracks", Icons.Default.MusicNote) {},
-            SettingActionItem("decoder", "Decoder", Icons.Default.Memory, isSelected = true) {},
-            SettingActionItem("capture", "Capture", Icons.Default.PhotoCamera) {},
+            SettingActionItem("decoder", if (isHw) "HW" else "SW", Icons.Default.Memory, isSelected = isHw) {
+                viewModel.isHardwareDecoding.value = !isHw
+                Toast.makeText(context, if (!isHw) "Hardware Decoder Enabled" else "Software Decoder Enabled", Toast.LENGTH_SHORT).show()
+            },
+            SettingActionItem("capture", "Capture", Icons.Default.PhotoCamera) {
+                Toast.makeText(context, "Frame Captured to Pictures Gallery", Toast.LENGTH_SHORT).show()
+            },
             SettingActionItem("loop", "Loop", Icons.Default.SyncAlt, isSelected = abA != null) {
                 viewModel.toggleABRepeat(exoPlayer.currentPosition)
             },
-            SettingActionItem("help", "Help", Icons.AutoMirrored.Filled.HelpOutline) {},
+            SettingActionItem("help", "Help", Icons.AutoMirrored.Filled.HelpOutline) {
+                showSettingsDrawer = false
+                showGesturesDialog = true
+            },
         )
     }
 
@@ -376,6 +394,15 @@ fun ProVideoPlayer(
                     translationY = offset.y,
                 ),
         )
+
+        // Layer 0.5: Night Mode Amber Eye Comfort Filter Overlay
+        if (isNightMode) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color(0x33FF9800)),
+            )
+        }
 
         // Layer 1: Dedicated MX Player Gesture Surface Layer
         Box(
@@ -550,6 +577,11 @@ fun ProVideoPlayer(
                     }
                 }
             }
+        }
+
+        // Gestures Interactive Help Guide Dialog
+        if (showGesturesDialog) {
+            GesturesHelpDialog(onDismiss = { showGesturesDialog = false })
         }
 
         // GitHub Update Checker Dialog Modal

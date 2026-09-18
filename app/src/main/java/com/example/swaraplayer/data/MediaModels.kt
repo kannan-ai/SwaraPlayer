@@ -82,3 +82,12 @@ enum class AudioPreset(val label: String) {
     ROCK("Rock"),
     POP("Pop"),
 }
+
+enum class SleepTimerMode(val label: String, val minutes: Int) {
+    OFF("Off", 0),
+    MIN_15("15 mins", 15),
+    MIN_30("30 mins", 30),
+    MIN_45("45 mins", 45),
+    MIN_60("60 mins", 60),
+    END_OF_VIDEO("End of Video", -1),
+}

@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.swaraplayer.data.AspectRatioMode
 import com.example.swaraplayer.data.AudioPreset
 import com.example.swaraplayer.data.OrientationMode
+import com.example.swaraplayer.data.SleepTimerMode
 import com.example.swaraplayer.data.SortOrder
 import com.example.swaraplayer.data.SubtitleStyle
 import com.example.swaraplayer.data.TrackOption
@@ -40,6 +41,9 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     val playbackSpeed = MutableStateFlow(1.0f)
     val aspectRatioMode = MutableStateFlow(AspectRatioMode.FIT)
     val orientationMode = MutableStateFlow(OrientationMode.SENSOR)
+    val sleepTimerMode = MutableStateFlow(SleepTimerMode.OFF)
+    val isNightModeEnabled = MutableStateFlow(false)
+    val isHardwareDecoding = MutableStateFlow(true)
     val volumeBoost = MutableStateFlow(1.0f) // 1.0f .. 2.0f
     val audioDelayMs = MutableStateFlow(0L) // Audio-Video Sync delay in ms
     val isScreenLocked = MutableStateFlow(false)
@@ -157,6 +161,12 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         val modes = OrientationMode.entries.toTypedArray()
         val nextIdx = (orientationMode.value.ordinal + 1) % modes.size
         orientationMode.value = modes[nextIdx]
+    }
+
+    fun cycleSleepTimer() {
+        val modes = SleepTimerMode.entries.toTypedArray()
+        val nextIdx = (sleepTimerMode.value.ordinal + 1) % modes.size
+        sleepTimerMode.value = modes[nextIdx]
     }
 
     fun toggleABRepeat(posMs: Long) {
