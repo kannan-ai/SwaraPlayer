@@ -80,8 +80,8 @@ fun VideoLibraryScreen(
             FolderItem(
                 name = folder.name,
                 videoCount = folder.videoCount,
+                newVideoCount = folder.newVideoCount,
                 previewVideoUri = folder.previewVideoUri,
-                hasNewBadge = folder.videoCount > 3,
                 isHighlighted = folder.name.contains("series", ignoreCase = true) || folder.name.contains("Download", ignoreCase = true),
             )
         }
@@ -282,16 +282,16 @@ fun FolderGridItem(folder: FolderItem, onClick: () -> Unit) {
                 modifier = Modifier.size(68.dp),
             )
 
-            // Red Notification Badge
-            if (folder.hasNewBadge) {
+            // Red Notification Badge showing EXACT number of new unopened files
+            if (folder.newVideoCount > 0) {
                 Box(
                     modifier = Modifier
-                        .size(17.dp)
+                        .size(20.dp)
                         .background(colors.badgeRed, CircleShape),
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        text = "N",
+                        text = if (folder.newVideoCount > 99) "99+" else folder.newVideoCount.toString(),
                         color = Color.White,
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,

@@ -102,12 +102,16 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
             }
             videosList.value = files
 
-            // Group videos by folder
+            // Group videos by folder and calculate exact unopened video count
             val folderMap = files.groupBy { it.folderName }
             val folders = folderMap.map { (name, videoFiles) ->
+                val unopenedCount = videoFiles.count { file ->
+                    positionRepo.getPosition(file.uri.toString()) == 0L
+                }
                 VideoFolder(
                     name = name,
                     videoCount = videoFiles.size,
+                    newVideoCount = if (unopenedCount > 0) unopenedCount else videoFiles.size,
                     totalSizeBytes = videoFiles.sumOf { it.sizeBytes },
                     previewVideoUri = videoFiles.firstOrNull()?.uri,
                 )

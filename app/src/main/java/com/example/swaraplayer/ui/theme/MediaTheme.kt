@@ -37,7 +37,7 @@ data class VideoItem(
 data class FolderItem(
     val name: String,
     val videoCount: Int,
+    val newVideoCount: Int = 0,
     val previewVideoUri: Uri? = null,
-    val hasNewBadge: Boolean = false,
     val isHighlighted: Boolean = false,
 )

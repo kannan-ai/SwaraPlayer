@@ -17,6 +17,7 @@ data class VideoFile(
 data class VideoFolder(
     val name: String,
     val videoCount: Int,
+    val newVideoCount: Int = 0,
     val totalSizeBytes: Long,
     val previewVideoUri: Uri?,
 )
