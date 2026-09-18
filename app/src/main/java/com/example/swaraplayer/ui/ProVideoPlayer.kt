@@ -8,6 +8,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.ActivityInfo
 import android.media.AudioManager
+import android.net.Uri
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.util.Rational
@@ -22,7 +23,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -44,13 +47,16 @@ import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.PictureInPicture
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.SyncAlt
+import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material.icons.filled.ZoomIn
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -172,6 +178,7 @@ fun ProVideoPlayer(
     val isLocked by viewModel.isScreenLocked.collectAsState()
     val speed by viewModel.playbackSpeed.collectAsState()
     val eqPreset by viewModel.currentEqualizerPreset.collectAsState()
+    val updateInfo by viewModel.updateInfoState.collectAsState()
     val abA by viewModel.abPointA.collectAsState()
     val abB by viewModel.abPointB.collectAsState()
 
@@ -189,7 +196,9 @@ fun ProVideoPlayer(
                 viewModel.playbackSpeed.value = next
                 exoPlayer.setPlaybackSpeed(next)
             },
-            SettingActionItem("cast", "Cast", Icons.Default.Cast) {},
+            SettingActionItem("update", "Updates", Icons.Default.SystemUpdate) {
+                viewModel.checkForAppUpdates()
+            },
             SettingActionItem("zoom", "Zoom", Icons.Default.ZoomIn, isSelected = aspectMode == AspectRatioMode.ZOOM) {
                 viewModel.aspectRatioMode.value = AspectRatioMode.ZOOM
             },
@@ -368,7 +377,7 @@ fun ProVideoPlayer(
                 ),
         )
 
-        // Layer 1: Dedicated Gesture Surface Layer
+        // Layer 1: Dedicated MX Player Gesture Surface Layer
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -380,7 +389,7 @@ fun ProVideoPlayer(
                         offset = if (scale > 1f) offset + pan else Offset.Zero
                     }
                 }
-                // Directional Locked Drag Gestures (Vertical Brightness/Volume & Horizontal 1:1 Scrubbing)
+                // MX Player Directional Locked Drag Gestures (Vertical Brightness/Volume & Horizontal 1:1 Scrubbing)
                 .pointerInput(isLocked) {
                     if (isLocked) return@pointerInput
                     detectDragGestures(
@@ -541,6 +550,52 @@ fun ProVideoPlayer(
                     }
                 }
             }
+        }
+
+        // GitHub Update Checker Dialog Modal
+        if (updateInfo != null) {
+            AlertDialog(
+                onDismissRequest = { viewModel.clearUpdateInfo() },
+                containerColor = Color(0xFF1E1E2C),
+                title = {
+                    Text(
+                        text = if (updateInfo!!.isUpdateAvailable) "New Version Available (${updateInfo!!.latestVersion})" else "Swara Player Up-To-Date",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                    )
+                },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(updateInfo!!.releaseNotes, color = Color.LightGray, fontSize = 13.sp)
+                    }
+                },
+                confirmButton = {
+                    if (updateInfo!!.isUpdateAvailable) {
+                        Button(
+                            onClick = {
+                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(updateInfo!!.downloadUrl))
+                                context.startActivity(intent)
+                                viewModel.clearUpdateInfo()
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color.Cyan),
+                        ) {
+                            Text("Download Update", color = Color.Black, fontWeight = FontWeight.Bold)
+                        }
+                    } else {
+                        TextButton(onClick = { viewModel.clearUpdateInfo() }) {
+                            Text("OK", color = Color.Cyan)
+                        }
+                    }
+                },
+                dismissButton = {
+                    if (updateInfo!!.isUpdateAvailable) {
+                        TextButton(onClick = { viewModel.clearUpdateInfo() }) {
+                            Text("Later", color = Color.Gray)
+                        }
+                    }
+                },
+                shape = RoundedCornerShape(16.dp),
+            )
         }
 
         // Layer 2: Top 3x Speed Boost Pill HUD

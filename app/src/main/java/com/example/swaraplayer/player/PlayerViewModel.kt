@@ -31,6 +31,9 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     val sortOrder = MutableStateFlow(SortOrder.DATE_NEWEST)
     val currentEqualizerPreset = MutableStateFlow(AudioPreset.FLAT)
 
+    val updateInfoState = MutableStateFlow<UpdateInfo?>(null)
+    val isCheckingUpdate = MutableStateFlow(false)
+
     val isPlaying = MutableStateFlow(false)
     val currentPosition = MutableStateFlow(0L)
     val duration = MutableStateFlow(0L)
@@ -113,6 +116,19 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
 
             isLoading.value = false
         }
+    }
+
+    fun checkForAppUpdates() {
+        viewModelScope.launch(Dispatchers.IO) {
+            isCheckingUpdate.value = true
+            val info = UpdateChecker.checkForUpdate(currentVersion = "v0.0.1")
+            updateInfoState.value = info
+            isCheckingUpdate.value = false
+        }
+    }
+
+    fun clearUpdateInfo() {
+        updateInfoState.value = null
     }
 
     fun selectFolder(folder: VideoFolder?) {
