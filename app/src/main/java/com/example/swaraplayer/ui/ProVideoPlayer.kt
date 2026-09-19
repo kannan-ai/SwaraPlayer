@@ -16,6 +16,7 @@ import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.FrameLayout
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.annotation.OptIn
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -142,6 +143,18 @@ fun ProVideoPlayer(
             .setSeekBackIncrementMs(10000)
             .setSeekForwardIncrementMs(10000)
             .build()
+    }
+
+    // Graceful Exit Handler (stops playback and returns to library)
+    val handleExit = {
+        exoPlayer.stop()
+        exoPlayer.clearMediaItems()
+        onBack()
+    }
+
+    // Intercept hardware and gesture back presses
+    BackHandler(enabled = true) {
+        handleExit()
     }
 
     var audioEnhancer by remember { mutableStateOf<SuperAudioEnhancer?>(null) }
@@ -296,7 +309,7 @@ fun ProVideoPlayer(
     // Auto-hide controls timer
     LaunchedEffect(showControls) {
         if (showControls) {
-            delay(4000)
+            delay(4500)
             showControls = false
         }
     }
@@ -676,7 +689,7 @@ fun ProVideoPlayer(
             onToggleControls = { showControls = !showControls },
             onToggleSettings = { showSettingsDrawer = true },
             onToggleInfo = { showInfoDialog = true },
-            onBack = onBack,
+            onBack = { handleExit() },
         )
 
         // Layer 6: Right-Side Settings Sheet Drawer
