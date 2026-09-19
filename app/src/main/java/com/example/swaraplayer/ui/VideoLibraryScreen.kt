@@ -57,6 +57,7 @@ import com.example.swaraplayer.ui.theme.VideoItem
 fun VideoLibraryScreen(
     viewModel: PlayerViewModel,
     onSelectVideo: (VideoFile) -> Unit,
+    onOpenSettings: () -> Unit,
     onNavigateBack: () -> Unit,
 ) {
     val colors = LocalAppColors.current
@@ -118,6 +119,7 @@ fun VideoLibraryScreen(
                 title = "Video Library",
                 onBack = onNavigateBack,
                 onHome = { viewModel.selectFolder(null) },
+                onSettings = onOpenSettings,
                 onHelp = {},
                 onSearch = {},
                 onSort = {},

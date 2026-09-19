@@ -11,6 +11,7 @@ import androidx.compose.material.icons.automirrored.outlined.HelpOutline
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -30,6 +31,7 @@ fun LibraryTopBar(
     onHelp: () -> Unit,
     onSearch: () -> Unit,
     onSort: () -> Unit,
+    onSettings: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val colors = LocalAppColors.current
@@ -58,6 +60,11 @@ fun LibraryTopBar(
 
         IconButton(onClick = onHome) {
             Icon(Icons.Default.Home, contentDescription = "Home", tint = colors.textPrimary)
+        }
+        if (onSettings != null) {
+            IconButton(onClick = onSettings) {
+                Icon(Icons.Default.Settings, contentDescription = "Settings", tint = colors.textPrimary)
+            }
         }
         IconButton(onClick = onHelp) {
             Icon(Icons.AutoMirrored.Outlined.HelpOutline, contentDescription = "Help", tint = colors.textPrimary)

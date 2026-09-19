@@ -15,6 +15,7 @@ import com.example.swaraplayer.data.TrackOption
 import com.example.swaraplayer.data.VideoFile
 import com.example.swaraplayer.data.VideoFolder
 import com.example.swaraplayer.data.VideoPositionRepository
+import com.example.swaraplayer.ui.theme.AppThemeMode
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
@@ -31,6 +32,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     val searchQuery = MutableStateFlow("")
     val sortOrder = MutableStateFlow(SortOrder.DATE_NEWEST)
     val currentEqualizerPreset = MutableStateFlow(AudioPreset.FLAT)
+    val appThemeMode = MutableStateFlow(AppThemeMode.OLED)
 
     val updateInfoState = MutableStateFlow<UpdateInfo?>(null)
     val isCheckingUpdate = MutableStateFlow(false)
