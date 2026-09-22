@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -46,6 +47,7 @@ fun MiniPlayerBar(
     currentTrack: MediaFile?,
     isPlaying: Boolean,
     onPlayPause: () -> Unit,
+    onSkipPrev: () -> Unit,
     onSkipNext: () -> Unit,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -122,8 +124,16 @@ fun MiniPlayerBar(
                 }
             }
 
-            // Controls: Orange Pause/Play + Skip Next
+            // Controls: Skip Previous (⏮️) + Orange Pause/Play (⏸️ / ▶️) + Skip Next (⏭️)
             Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onSkipPrev, modifier = Modifier.size(32.dp)) {
+                    Icon(
+                        imageVector = Icons.Default.SkipPrevious,
+                        contentDescription = "Previous Track",
+                        tint = Color.White,
+                        modifier = Modifier.size(22.dp),
+                    )
+                }
                 IconButton(onClick = onPlayPause, modifier = Modifier.size(36.dp)) {
                     Icon(
                         imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
@@ -132,12 +142,12 @@ fun MiniPlayerBar(
                         modifier = Modifier.size(26.dp),
                     )
                 }
-                IconButton(onClick = onSkipNext, modifier = Modifier.size(36.dp)) {
+                IconButton(onClick = onSkipNext, modifier = Modifier.size(32.dp)) {
                     Icon(
                         imageVector = Icons.Default.SkipNext,
                         contentDescription = "Skip Next",
                         tint = Color.White,
-                        modifier = Modifier.size(26.dp),
+                        modifier = Modifier.size(22.dp),
                     )
                 }
             }

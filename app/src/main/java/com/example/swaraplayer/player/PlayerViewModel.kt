@@ -3,7 +3,7 @@ package com.example.swaraplayer.player
 import android.app.Application
 import android.content.ContentUris
 import android.content.Context
-import android.graphics.ImageDecoder
+import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
@@ -54,6 +54,11 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     val updateInfoState = MutableStateFlow<UpdateInfo?>(null)
     val isCheckingUpdate = MutableStateFlow(false)
 
+    // Selection & File Actions State
+    val selectedVideoIds = MutableStateFlow<Set<Long>>(emptySet())
+    val selectedAudioIds = MutableStateFlow<Set<Long>>(emptySet())
+    val isSelectionMode = MutableStateFlow(false)
+
     // Video Playback State
     val isPlaying = MutableStateFlow(false)
     val currentPosition = MutableStateFlow(0L)
@@ -101,6 +106,64 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                 }
                 delay(500)
             }
+        }
+    }
+
+    fun toggleVideoSelection(id: Long) {
+        val current = selectedVideoIds.value.toMutableSet()
+        if (current.contains(id)) current.remove(id) else current.add(id)
+        selectedVideoIds.value = current
+        isSelectionMode.value = current.isNotEmpty() || selectedAudioIds.value.isNotEmpty()
+    }
+
+    fun toggleAudioSelection(id: Long) {
+        val current = selectedAudioIds.value.toMutableSet()
+        if (current.contains(id)) current.remove(id) else current.add(id)
+        selectedAudioIds.value = current
+        isSelectionMode.value = current.isNotEmpty() || selectedVideoIds.value.isNotEmpty()
+    }
+
+    fun clearSelections() {
+        selectedVideoIds.value = emptySet()
+        selectedAudioIds.value = emptySet()
+        isSelectionMode.value = false
+    }
+
+    fun shareSelectedMedia(context: Context) {
+        val videoUris = videosList.value.filter { selectedVideoIds.value.contains(it.id) }.map { it.uri }
+        val audioUris = audioList.value.filter { selectedAudioIds.value.contains(it.id) }.map { it.uri }
+        val allUris = ArrayList(videoUris + audioUris)
+
+        if (allUris.isEmpty()) return
+
+        val shareIntent = if (allUris.size == 1) {
+            Intent(Intent.ACTION_SEND).apply {
+                type = "*/*"
+                putExtra(Intent.EXTRA_STREAM, allUris.first())
+            }
+        } else {
+            Intent(Intent.ACTION_SEND_MULTIPLE).apply {
+                type = "*/*"
+                putParcelableArrayListExtra(Intent.EXTRA_STREAM, allUris)
+            }
+        }
+        context.startActivity(Intent.createChooser(shareIntent, "Share Media Files"))
+    }
+
+    fun deleteSelectedMedia(context: Context) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val videoUris = videosList.value.filter { selectedVideoIds.value.contains(it.id) }.map { it.uri }
+            val audioUris = audioList.value.filter { selectedAudioIds.value.contains(it.id) }.map { it.uri }
+            val allUris = videoUris + audioUris
+
+            allUris.forEach { uri ->
+                try {
+                    context.contentResolver.delete(uri, null, null)
+                } catch (_: Exception) {}
+            }
+
+            clearSelections()
+            scanLocalVideos()
         }
     }
 

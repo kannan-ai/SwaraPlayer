@@ -172,6 +172,7 @@ fun MusicPlayerScreen(
                         currentTrack = currentTrack,
                         isPlaying = isPlaying,
                         onPlayPause = { viewModel.toggleAudioPlayPause() },
+                        onSkipPrev = { viewModel.skipToPrevAudioTrack() },
                         onSkipNext = { viewModel.skipToNextAudioTrack() },
                         onClick = onOpenExpandedPlayer,
                     )
