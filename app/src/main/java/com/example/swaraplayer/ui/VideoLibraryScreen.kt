@@ -57,6 +57,7 @@ import com.example.swaraplayer.ui.theme.VideoItem
 fun VideoLibraryScreen(
     viewModel: PlayerViewModel,
     onSelectVideo: (VideoFile) -> Unit,
+    onOpenMusic: () -> Unit,
     onOpenSettings: () -> Unit,
     onNavigateBack: () -> Unit,
 ) {
@@ -120,6 +121,7 @@ fun VideoLibraryScreen(
                 onBack = onNavigateBack,
                 onHome = { viewModel.selectFolder(null) },
                 onSettings = onOpenSettings,
+                onMusic = onOpenMusic,
                 onHelp = {},
                 onSearch = {},
                 onSort = {},

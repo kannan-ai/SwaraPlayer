@@ -49,9 +49,10 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
 
-    // Image loading for thumbnails
+    // Image loading for thumbnails & Palette
     implementation("io.coil-kt:coil-compose:2.6.0")
     implementation("io.coil-kt:coil-video:2.6.0")
+    implementation("androidx.palette:palette-ktx:1.0.0")
 
     // DataStore
     implementation("androidx.datastore:datastore-preferences:1.1.1")

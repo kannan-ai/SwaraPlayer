@@ -7,6 +7,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.swaraplayer.data.AspectRatioMode
 import com.example.swaraplayer.data.AudioPreset
+import com.example.swaraplayer.data.MediaFile
 import com.example.swaraplayer.data.OrientationMode
 import com.example.swaraplayer.data.SleepTimerMode
 import com.example.swaraplayer.data.SortOrder
@@ -37,6 +38,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     val updateInfoState = MutableStateFlow<UpdateInfo?>(null)
     val isCheckingUpdate = MutableStateFlow(false)
 
+    // Video Playback State
     val isPlaying = MutableStateFlow(false)
     val currentPosition = MutableStateFlow(0L)
     val duration = MutableStateFlow(0L)
@@ -50,6 +52,13 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     val audioDelayMs = MutableStateFlow(0L) // Audio-Video Sync delay in ms
     val isScreenLocked = MutableStateFlow(false)
     val isBackgroundAudioOnly = MutableStateFlow(false)
+
+    // Audio / Music Player State
+    val audioList = MutableStateFlow<List<MediaFile>>(emptyList())
+    val currentAudioTrack = MutableStateFlow<MediaFile?>(null)
+    val isAudioPlaying = MutableStateFlow(false)
+    val audioCurrentPosition = MutableStateFlow(0L)
+    val audioDuration = MutableStateFlow(0L)
 
     val subtitleStyle = MutableStateFlow(SubtitleStyle())
     val audioTracksList = MutableStateFlow<List<TrackOption>>(emptyList())
@@ -124,8 +133,103 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
             }.sortedBy { it.name }
             foldersList.value = folders
 
+            scanLocalAudioTracks()
             isLoading.value = false
         }
+    }
+
+    fun scanLocalAudioTracks() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val audioFiles = mutableListOf<MediaFile>()
+            val projection = arrayOf(
+                MediaStore.Audio.Media._ID,
+                MediaStore.Audio.Media.TITLE,
+                MediaStore.Audio.Media.ARTIST,
+                MediaStore.Audio.Media.ALBUM,
+                MediaStore.Audio.Media.ALBUM_ID,
+                MediaStore.Audio.Media.DURATION,
+                MediaStore.Audio.Media.SIZE,
+                MediaStore.Audio.Media.DATA,
+            )
+
+            val queryUri = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
+            getApplication<Application>().contentResolver.query(
+                queryUri,
+                projection,
+                null,
+                null,
+                "${MediaStore.Audio.Media.TITLE} ASC",
+            )?.use { cursor ->
+                val idCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
+                val titleCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE)
+                val artistCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST)
+                val albumCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM)
+                val albumIdCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM_ID)
+                val durCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
+                val sizeCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.SIZE)
+                val dataCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATA)
+
+                while (cursor.moveToNext()) {
+                    val id = cursor.getLong(idCol)
+                    val albumId = cursor.getLong(albumIdCol)
+                    val contentUri = ContentUris.withAppendedId(queryUri, id)
+                    val artUri = ContentUris.withAppendedId(
+                        ContentUris.withAppendedId(MediaStore.Audio.Albums.EXTERNAL_CONTENT_URI, albumId),
+                        0,
+                    )
+
+                    audioFiles.add(
+                        MediaFile(
+                            id = id,
+                            title = cursor.getString(titleCol) ?: "Audio Track",
+                            artist = cursor.getString(artistCol) ?: "Unknown Artist",
+                            album = cursor.getString(albumCol) ?: "Unknown Album",
+                            durationMs = cursor.getLong(durCol),
+                            uri = contentUri,
+                            albumArtUri = artUri,
+                            sizeBytes = cursor.getLong(sizeCol),
+                            path = cursor.getString(dataCol) ?: "",
+                        ),
+                    )
+                }
+            }
+            audioList.value = audioFiles
+            if (currentAudioTrack.value == null && audioFiles.isNotEmpty()) {
+                currentAudioTrack.value = audioFiles.first()
+                audioDuration.value = audioFiles.first().durationMs
+            }
+        }
+    }
+
+    fun playAudioTrack(track: MediaFile) {
+        currentAudioTrack.value = track
+        audioDuration.value = track.durationMs
+        audioCurrentPosition.value = 0L
+        isAudioPlaying.value = true
+    }
+
+    fun toggleAudioPlayPause() {
+        isAudioPlaying.value = !isAudioPlaying.value
+    }
+
+    fun skipToNextAudioTrack() {
+        val tracks = audioList.value
+        if (tracks.isEmpty()) return
+        val curr = currentAudioTrack.value
+        val nextIndex = if (curr != null) (tracks.indexOf(curr) + 1) % tracks.size else 0
+        playAudioTrack(tracks[nextIndex])
+    }
+
+    fun skipToPrevAudioTrack() {
+        val tracks = audioList.value
+        if (tracks.isEmpty()) return
+        val curr = currentAudioTrack.value
+        val prevIndex = if (curr != null) (tracks.indexOf(curr) - 1 + tracks.size) % tracks.size else 0
+        playAudioTrack(tracks[prevIndex])
+    }
+
+    fun seekAudioTo(positionMs: Long) {
+        audioCurrentPosition.value = positionMs.coerceIn(0L, audioDuration.value)
     }
 
     fun checkForAppUpdates() {

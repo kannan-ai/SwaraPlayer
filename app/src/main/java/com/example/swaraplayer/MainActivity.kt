@@ -28,6 +28,8 @@ import androidx.compose.ui.Modifier
 import com.example.swaraplayer.data.VideoFile
 import com.example.swaraplayer.player.PlayerViewModel
 import com.example.swaraplayer.ui.AppSettingsScreen
+import com.example.swaraplayer.ui.ExpandedPlayerScreen
+import com.example.swaraplayer.ui.MusicPlayerScreen
 import com.example.swaraplayer.ui.ProVideoPlayer
 import com.example.swaraplayer.ui.VideoLibraryScreen
 import com.example.swaraplayer.ui.theme.LocalAppColors
@@ -64,15 +66,21 @@ class MainActivity : ComponentActivity() {
                 WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
         }
 
-        // Request Permissions
-        val permissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) {
+        // Request Permissions for Media
+        val permissionLauncher = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
             viewModel.scanLocalVideos()
+            viewModel.scanLocalAudioTracks()
         }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            permissionLauncher.launch(Manifest.permission.READ_MEDIA_VIDEO)
+            permissionLauncher.launch(
+                arrayOf(
+                    Manifest.permission.READ_MEDIA_VIDEO,
+                    Manifest.permission.READ_MEDIA_AUDIO,
+                ),
+            )
         } else {
-            permissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
+            permissionLauncher.launch(arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE))
         }
 
         setContent {
@@ -87,6 +95,8 @@ class MainActivity : ComponentActivity() {
                     ) {
                         var activeVideo by remember { mutableStateOf<VideoFile?>(null) }
                         var isSettingsOpen by remember { mutableStateOf(false) }
+                        var isMusicLibraryOpen by remember { mutableStateOf(false) }
+                        var isExpandedMusicPlayerOpen by remember { mutableStateOf(false) }
 
                         // Handle External Intent ("Open With" / "Share With" from other apps)
                         LaunchedEffect(intent) {
@@ -124,6 +134,18 @@ class MainActivity : ComponentActivity() {
                                 },
                                 onBack = { activeVideo = null },
                             )
+                        } else if (isExpandedMusicPlayerOpen) {
+                            ExpandedPlayerScreen(
+                                viewModel = viewModel,
+                                onBack = { isExpandedMusicPlayerOpen = false },
+                            )
+                        } else if (isMusicLibraryOpen) {
+                            MusicPlayerScreen(
+                                viewModel = viewModel,
+                                onOpenExpandedPlayer = { isExpandedMusicPlayerOpen = true },
+                                onOpenSettings = { isSettingsOpen = true },
+                                onNavigateBack = { isMusicLibraryOpen = false },
+                            )
                         } else if (isSettingsOpen) {
                             AppSettingsScreen(
                                 viewModel = viewModel,
@@ -133,6 +155,7 @@ class MainActivity : ComponentActivity() {
                             VideoLibraryScreen(
                                 viewModel = viewModel,
                                 onSelectVideo = { video -> activeVideo = video },
+                                onOpenMusic = { isMusicLibraryOpen = true },
                                 onOpenSettings = { isSettingsOpen = true },
                                 onNavigateBack = { finish() },
                             )

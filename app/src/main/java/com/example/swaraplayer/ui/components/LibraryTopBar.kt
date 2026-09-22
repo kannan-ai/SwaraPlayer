@@ -10,6 +10,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.HelpOutline
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
@@ -32,6 +33,7 @@ fun LibraryTopBar(
     onSearch: () -> Unit,
     onSort: () -> Unit,
     onSettings: (() -> Unit)? = null,
+    onMusic: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val colors = LocalAppColors.current
@@ -60,6 +62,11 @@ fun LibraryTopBar(
 
         IconButton(onClick = onHome) {
             Icon(Icons.Default.Home, contentDescription = "Home", tint = colors.textPrimary)
+        }
+        if (onMusic != null) {
+            IconButton(onClick = onMusic) {
+                Icon(Icons.Default.MusicNote, contentDescription = "Music Player", tint = colors.accentOrange)
+            }
         }
         if (onSettings != null) {
             IconButton(onClick = onSettings) {
