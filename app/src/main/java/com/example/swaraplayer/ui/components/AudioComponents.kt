@@ -31,7 +31,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -56,7 +55,7 @@ fun MiniPlayerBar(
     val colors = LocalAppColors.current
 
     Surface(
-        color = Color(0xFF23232C),
+        color = colors.surface,
         shape = RoundedCornerShape(16.dp),
         shadowElevation = 8.dp,
         modifier = modifier
@@ -95,7 +94,7 @@ fun MiniPlayerBar(
                         Icon(
                             imageVector = Icons.Default.MusicNote,
                             contentDescription = null,
-                            tint = Color.White,
+                            tint = colors.textPrimary,
                             modifier = Modifier.size(24.dp),
                         )
                     }
@@ -107,7 +106,7 @@ fun MiniPlayerBar(
                 Column {
                     Text(
                         text = currentTrack.title,
-                        color = Color.White,
+                        color = colors.textPrimary,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
@@ -116,7 +115,7 @@ fun MiniPlayerBar(
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = currentTrack.artist,
-                        color = colors.accentOrange, // Orange artist text matching screenshot
+                        color = colors.accentOrange,
                         fontSize = 11.sp,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -124,13 +123,13 @@ fun MiniPlayerBar(
                 }
             }
 
-            // Controls: Skip Previous (⏮️) + Orange Pause/Play (⏸️ / ▶️) + Skip Next (⏭️)
+            // Controls: Skip Previous + Orange Pause/Play + Skip Next
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onSkipPrev, modifier = Modifier.size(32.dp)) {
                     Icon(
                         imageVector = Icons.Default.SkipPrevious,
                         contentDescription = "Previous Track",
-                        tint = Color.White,
+                        tint = colors.textPrimary,
                         modifier = Modifier.size(22.dp),
                     )
                 }
@@ -146,7 +145,7 @@ fun MiniPlayerBar(
                     Icon(
                         imageVector = Icons.Default.SkipNext,
                         contentDescription = "Skip Next",
-                        tint = Color.White,
+                        tint = colors.textPrimary,
                         modifier = Modifier.size(22.dp),
                     )
                 }
@@ -160,14 +159,16 @@ fun AudioXRayDialog(
     metadata: SanitizedMetadata,
     onDismiss: () -> Unit,
 ) {
+    val colors = LocalAppColors.current
+
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = Color(0xFF1E1E2C),
+        containerColor = colors.surface,
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.GraphicEq, contentDescription = null, tint = Color.Cyan)
+                Icon(Icons.Default.GraphicEq, contentDescription = null, tint = colors.accentOrange)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Audio X-Ray Inspector", color = Color.White, fontWeight = FontWeight.Bold)
+                Text("Audio X-Ray Inspector", color = colors.textPrimary, fontWeight = FontWeight.Bold)
             }
         },
         text = {
@@ -187,7 +188,7 @@ fun AudioXRayDialog(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("Close", color = Color.Cyan, fontWeight = FontWeight.Bold)
+                Text("Close", color = colors.accentOrange, fontWeight = FontWeight.Bold)
             }
         },
         shape = RoundedCornerShape(16.dp),
@@ -196,11 +197,13 @@ fun AudioXRayDialog(
 
 @Composable
 private fun XRayItem(label: String, value: String) {
+    val colors = LocalAppColors.current
+
     Column {
-        Text(label, color = Color.Gray, fontSize = 10.sp, fontWeight = FontWeight.Medium)
+        Text(label, color = colors.textSecondary, fontSize = 10.sp, fontWeight = FontWeight.Medium)
         Text(
             text = value.ifBlank { "Unknown" },
-            color = Color.White,
+            color = colors.textPrimary,
             fontSize = 12.sp,
             fontWeight = FontWeight.Bold,
             maxLines = 2,

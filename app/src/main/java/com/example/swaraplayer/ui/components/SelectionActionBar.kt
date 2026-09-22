@@ -18,7 +18,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -36,7 +35,7 @@ fun SelectionActionBar(
     val colors = LocalAppColors.current
 
     Surface(
-        color = Color(0xFF23232C),
+        color = colors.surface,
         shape = RoundedCornerShape(16.dp),
         shadowElevation = 12.dp,
         modifier = modifier
@@ -53,11 +52,11 @@ fun SelectionActionBar(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onClearSelection, modifier = Modifier.size(36.dp)) {
-                    Icon(Icons.Default.Close, contentDescription = "Clear Selection", tint = Color.White, modifier = Modifier.size(20.dp))
+                    Icon(Icons.Default.Close, contentDescription = "Clear Selection", tint = colors.textPrimary, modifier = Modifier.size(20.dp))
                 }
                 Text(
                     text = "$selectedCount Selected",
-                    color = Color.White,
+                    color = colors.textPrimary,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(start = 8.dp),
