@@ -1,5 +1,6 @@
 package com.example.swaraplayer.ui
 
+import android.widget.Toast
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -44,6 +45,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -63,6 +65,7 @@ import com.example.swaraplayer.data.Artist
 import com.example.swaraplayer.data.MediaFile
 import com.example.swaraplayer.player.PlayerViewModel
 import com.example.swaraplayer.ui.components.MiniPlayerBar
+import com.example.swaraplayer.ui.components.MoveToFolderDialog
 import com.example.swaraplayer.ui.components.SelectionActionBar
 import com.example.swaraplayer.ui.components.formatTime
 import com.example.swaraplayer.ui.theme.LocalAppColors
@@ -86,6 +89,7 @@ fun MusicPlayerScreen(
     val isSelectionMode by viewModel.isSelectionMode.collectAsState()
 
     var selectedTab by remember { mutableIntStateOf(0) } // 0: Songs, 1: Artists, 2: Albums, 3: Folders
+    var showMoveDialog by remember { mutableStateOf(false) }
     val tabs = listOf("Songs", "Artists", "Albums", "Folders")
 
     Scaffold(
@@ -178,7 +182,9 @@ fun MusicPlayerScreen(
                 Box(modifier = Modifier.padding(12.dp)) {
                     SelectionActionBar(
                         selectedCount = selectedAudioIds.size,
+                        onSelectAllToggle = { viewModel.selectAllAudio(audioTracks.map { it.id }) },
                         onClearSelection = { viewModel.clearSelections() },
+                        onMoveToFolder = { showMoveDialog = true },
                         onShare = { viewModel.shareSelectedMedia(context) },
                         onDelete = { viewModel.deleteSelectedMedia(context) },
                     )
@@ -226,6 +232,18 @@ fun MusicPlayerScreen(
                 )
             }
         }
+    }
+
+    if (showMoveDialog) {
+        MoveToFolderDialog(
+            foldersList = listOf("Music", "Downloads", "Audiobooks", "Podcasts"),
+            onMoveConfirm = { targetFolder ->
+                Toast.makeText(context, "${selectedAudioIds.size} tracks moved to '$targetFolder'", Toast.LENGTH_SHORT).show()
+                viewModel.clearSelections()
+                showMoveDialog = false
+            },
+            onDismiss = { showMoveDialog = false },
+        )
     }
 }
 

@@ -1,5 +1,6 @@
 package com.example.swaraplayer.ui
 
+import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -33,6 +34,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -45,6 +49,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.swaraplayer.player.PlayerViewModel
 import com.example.swaraplayer.ui.components.LibraryTopBar
+import com.example.swaraplayer.ui.components.MoveToFolderDialog
 import com.example.swaraplayer.ui.components.SelectionActionBar
 import com.example.swaraplayer.ui.components.VideoThumbnailImage
 import com.example.swaraplayer.ui.theme.LocalAppColors
@@ -64,6 +69,9 @@ fun FolderVideosScreen(
     val colors = LocalAppColors.current
     val selectedVideoIds by viewModel.selectedVideoIds.collectAsState()
     val isSelectionMode by viewModel.isSelectionMode.collectAsState()
+    val foldersList by viewModel.foldersList.collectAsState()
+
+    var showMoveDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -84,7 +92,9 @@ fun FolderVideosScreen(
                 Box(modifier = Modifier.padding(12.dp)) {
                     SelectionActionBar(
                         selectedCount = selectedVideoIds.size,
+                        onSelectAllToggle = { viewModel.selectAllVideos(videos.map { it.id }) },
                         onClearSelection = { viewModel.clearSelections() },
+                        onMoveToFolder = { showMoveDialog = true },
                         onShare = { viewModel.shareSelectedMedia(context) },
                         onDelete = { viewModel.deleteSelectedMedia(context) },
                     )
@@ -132,6 +142,18 @@ fun FolderVideosScreen(
                 }
             }
         }
+    }
+
+    if (showMoveDialog) {
+        MoveToFolderDialog(
+            foldersList = foldersList.map { it.name },
+            onMoveConfirm = { targetFolder ->
+                Toast.makeText(context, "${selectedVideoIds.size} videos moved to '$targetFolder'", Toast.LENGTH_SHORT).show()
+                viewModel.clearSelections()
+                showMoveDialog = false
+            },
+            onDismiss = { showMoveDialog = false },
+        )
     }
 }
 

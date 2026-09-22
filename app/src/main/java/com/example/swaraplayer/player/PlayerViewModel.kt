@@ -123,6 +123,26 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         isSelectionMode.value = current.isNotEmpty() || selectedVideoIds.value.isNotEmpty()
     }
 
+    fun selectAllVideos(videoIds: List<Long>) {
+        if (selectedVideoIds.value.size == videoIds.size) {
+            selectedVideoIds.value = emptySet()
+            isSelectionMode.value = selectedAudioIds.value.isNotEmpty()
+        } else {
+            selectedVideoIds.value = videoIds.toSet()
+            isSelectionMode.value = true
+        }
+    }
+
+    fun selectAllAudio(audioIds: List<Long>) {
+        if (selectedAudioIds.value.size == audioIds.size) {
+            selectedAudioIds.value = emptySet()
+            isSelectionMode.value = selectedVideoIds.value.isNotEmpty()
+        } else {
+            selectedAudioIds.value = audioIds.toSet()
+            isSelectionMode.value = true
+        }
+    }
+
     fun clearSelections() {
         selectedVideoIds.value = emptySet()
         selectedAudioIds.value = emptySet()

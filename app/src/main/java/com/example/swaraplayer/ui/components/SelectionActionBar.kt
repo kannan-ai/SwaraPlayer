@@ -8,8 +8,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.DriveFileMove
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.SelectAll
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -26,7 +28,9 @@ import com.example.swaraplayer.ui.theme.LocalAppColors
 @Composable
 fun SelectionActionBar(
     selectedCount: Int,
+    onSelectAllToggle: () -> Unit,
     onClearSelection: () -> Unit,
+    onMoveToFolder: () -> Unit,
     onShare: () -> Unit,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier,
@@ -51,24 +55,30 @@ fun SelectionActionBar(
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onClearSelection, modifier = Modifier.size(36.dp)) {
-                    Icon(Icons.Default.Close, contentDescription = "Clear Selection", tint = colors.textPrimary, modifier = Modifier.size(20.dp))
+                IconButton(onClick = onClearSelection, modifier = Modifier.size(34.dp)) {
+                    Icon(Icons.Default.Close, contentDescription = "Clear Selection", tint = colors.textPrimary, modifier = Modifier.size(18.dp))
                 }
                 Text(
                     text = "$selectedCount Selected",
                     color = colors.textPrimary,
-                    fontSize = 14.sp,
+                    fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(start = 8.dp),
+                    modifier = Modifier.padding(start = 4.dp),
                 )
             }
 
             Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onShare, modifier = Modifier.size(36.dp)) {
-                    Icon(Icons.Default.Share, contentDescription = "Share", tint = colors.accentOrange, modifier = Modifier.size(20.dp))
+                IconButton(onClick = onSelectAllToggle, modifier = Modifier.size(34.dp)) {
+                    Icon(Icons.Default.SelectAll, contentDescription = "Select All", tint = colors.textPrimary, modifier = Modifier.size(18.dp))
                 }
-                IconButton(onClick = onDelete, modifier = Modifier.size(36.dp)) {
-                    Icon(Icons.Default.Delete, contentDescription = "Delete", tint = colors.badgeRed, modifier = Modifier.size(20.dp))
+                IconButton(onClick = onMoveToFolder, modifier = Modifier.size(34.dp)) {
+                    Icon(Icons.AutoMirrored.Filled.DriveFileMove, contentDescription = "Move to Folder", tint = colors.textPrimary, modifier = Modifier.size(18.dp))
+                }
+                IconButton(onClick = onShare, modifier = Modifier.size(34.dp)) {
+                    Icon(Icons.Default.Share, contentDescription = "Share", tint = colors.accentOrange, modifier = Modifier.size(18.dp))
+                }
+                IconButton(onClick = onDelete, modifier = Modifier.size(34.dp)) {
+                    Icon(Icons.Default.Delete, contentDescription = "Delete", tint = colors.badgeRed, modifier = Modifier.size(18.dp))
                 }
             }
         }
