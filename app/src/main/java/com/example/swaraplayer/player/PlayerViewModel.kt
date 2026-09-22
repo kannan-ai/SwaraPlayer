@@ -10,6 +10,8 @@ import android.provider.MediaStore
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.media3.common.MediaItem
+import androidx.media3.common.Player
 import androidx.palette.graphics.Palette
 import com.example.swaraplayer.data.Album
 import com.example.swaraplayer.data.Artist
@@ -28,7 +30,9 @@ import com.example.swaraplayer.data.VideoPositionRepository
 import com.example.swaraplayer.ui.components.formatTime
 import com.example.swaraplayer.ui.theme.AppThemeMode
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 class PlayerViewModel(application: Application) : AndroidViewModel(application) {
@@ -73,6 +77,8 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     val audioDuration = MutableStateFlow(0L)
     val dominantColor = MutableStateFlow(Color(0xFF1E1E2C))
 
+    private var audioPlayerRef: Player? = null
+
     val subtitleStyle = MutableStateFlow(SubtitleStyle())
     val audioTracksList = MutableStateFlow<List<TrackOption>>(emptyList())
     val subtitleTracksList = MutableStateFlow<List<TrackOption>>(emptyList())
@@ -80,6 +86,36 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     // A-B Repeat Loop Markers
     val abPointA = MutableStateFlow<Long?>(null)
     val abPointB = MutableStateFlow<Long?>(null)
+
+    init {
+        // Active slider progress polling ticker loop
+        viewModelScope.launch {
+            while (isActive) {
+                audioPlayerRef?.let { p ->
+                    if (p.isPlaying) {
+                        audioCurrentPosition.value = p.currentPosition.coerceAtLeast(0L)
+                        audioDuration.value = p.duration.coerceAtLeast(0L)
+                    }
+                }
+                delay(500)
+            }
+        }
+    }
+
+    fun bindAudioPlayer(player: Player) {
+        this.audioPlayerRef = player
+        player.addListener(object : Player.Listener {
+            override fun onIsPlayingChanged(playing: Boolean) {
+                isAudioPlaying.value = playing
+            }
+
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                if (playbackState == Player.STATE_READY) {
+                    audioDuration.value = player.duration.coerceAtLeast(0L)
+                }
+            }
+        })
+    }
 
     fun scanLocalVideos() {
         viewModelScope.launch(Dispatchers.IO) {
@@ -229,6 +265,13 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         audioDuration.value = track.durationMs
         audioCurrentPosition.value = 0L
         isAudioPlaying.value = true
+
+        audioPlayerRef?.let { p ->
+            p.setMediaItem(MediaItem.fromUri(track.uri))
+            p.prepare()
+            p.play()
+        }
+
         if (context != null) {
             extractPaletteColor(context, track.albumArtUri)
         }
@@ -260,6 +303,9 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun toggleAudioPlayPause() {
+        audioPlayerRef?.let { p ->
+            if (p.isPlaying) p.pause() else p.play()
+        }
         isAudioPlaying.value = !isAudioPlaying.value
     }
 
@@ -280,7 +326,9 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun seekAudioTo(positionMs: Long) {
-        audioCurrentPosition.value = positionMs.coerceIn(0L, audioDuration.value)
+        val target = positionMs.coerceIn(0L, audioDuration.value)
+        audioCurrentPosition.value = target
+        audioPlayerRef?.seekTo(target)
     }
 
     fun checkForAppUpdates() {

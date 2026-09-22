@@ -2,6 +2,7 @@ package com.example.swaraplayer
 
 import android.Manifest
 import android.app.PictureInPictureParams
+import android.content.ComponentName
 import android.content.Intent
 import android.content.res.Configuration
 import android.net.Uri
@@ -15,6 +16,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.annotation.OptIn
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.CompositionLocalProvider
@@ -25,8 +27,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.session.MediaController
+import androidx.media3.session.SessionToken
 import com.example.swaraplayer.data.VideoFile
 import com.example.swaraplayer.player.PlayerViewModel
+import com.example.swaraplayer.service.MediaPlaybackService
 import com.example.swaraplayer.ui.AppSettingsScreen
 import com.example.swaraplayer.ui.ExpandedPlayerScreen
 import com.example.swaraplayer.ui.MusicPlayerScreen
@@ -35,6 +41,7 @@ import com.example.swaraplayer.ui.VideoLibraryScreen
 import com.example.swaraplayer.ui.theme.LocalAppColors
 import com.example.swaraplayer.ui.theme.SwaraPlayerTheme
 import com.example.swaraplayer.ui.theme.getThemeColors
+import com.google.common.util.concurrent.MoreExecutors
 
 class MainActivity : ComponentActivity() {
 
@@ -56,6 +63,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    @OptIn(UnstableApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -66,7 +74,7 @@ class MainActivity : ComponentActivity() {
                 WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
         }
 
-        // Request Permissions for Media
+        // Request Permissions for Media & Notifications
         val permissionLauncher = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
             viewModel.scanLocalVideos()
             viewModel.scanLocalAudioTracks()
@@ -77,11 +85,24 @@ class MainActivity : ComponentActivity() {
                 arrayOf(
                     Manifest.permission.READ_MEDIA_VIDEO,
                     Manifest.permission.READ_MEDIA_AUDIO,
+                    Manifest.permission.POST_NOTIFICATIONS,
                 ),
             )
         } else {
             permissionLauncher.launch(arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE))
         }
+
+        // Bind MediaController for MediaSessionService
+        try {
+            val sessionToken = SessionToken(this, ComponentName(this, MediaPlaybackService::class.java))
+            val controllerFuture = MediaController.Builder(this, sessionToken).buildAsync()
+            controllerFuture.addListener({
+                try {
+                    val controller = controllerFuture.get()
+                    controller?.let { viewModel.bindAudioPlayer(it) }
+                } catch (_: Exception) {}
+            }, MoreExecutors.directExecutor())
+        } catch (_: Exception) {}
 
         setContent {
             val currentThemeMode by viewModel.appThemeMode.collectAsState()
