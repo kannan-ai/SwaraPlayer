@@ -111,7 +111,6 @@ import com.example.swaraplayer.ui.components.VideoControlsOverlay
 import com.example.swaraplayer.ui.components.VideoMetadataDialog
 import com.example.swaraplayer.ui.components.VideoSettingsDrawer
 import com.example.swaraplayer.ui.components.formatTime
-import com.example.swaraplayer.ui.components.progressiveTapSeek
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.abs
@@ -524,25 +523,25 @@ fun ProVideoPlayer(
                         }
                     }
                 }
-                // Progressive Tap Seeking (Single Tap, Continuous Chain Taps, 3x Speed Boost)
-                .progressiveTapSeek(
-                    enabled = !isLocked,
-                    onSingleTap = {
-                        showControls = !showControls
-                    },
-                    onSeekAccumulated = { forward, totalSec ->
-                        isSeekBubbleForward = forward
-                        seekBubbleText = "${if (forward) "+" else "-"}${totalSec}s"
-                        val deltaMs = if (forward) 10_000L else -10_000L
-                        exoPlayer.seekTo((exoPlayer.currentPosition + deltaMs).coerceIn(0L, exoPlayer.duration))
-                    },
-                    onSeekEnd = {
-                        seekBubbleText = null
-                    },
-                )
+                // Unified Tap & Double Tap Handler across the ENTIRE viewport screen
                 .pointerInput(isLocked) {
                     if (isLocked) return@pointerInput
                     detectTapGestures(
+                        onTap = {
+                            showControls = !showControls
+                        },
+                        onDoubleTap = { offset ->
+                            showControls = true
+                            val isForward = offset.x > (size.width / 2f)
+                            isSeekBubbleForward = isForward
+                            seekBubbleText = if (isForward) "+10s" else "-10s"
+                            val deltaMs = if (isForward) 10_000L else -10_000L
+                            exoPlayer.seekTo((exoPlayer.currentPosition + deltaMs).coerceIn(0L, exoPlayer.duration))
+                            scope.launch {
+                                delay(650L)
+                                seekBubbleText = null
+                            }
+                        },
                         onLongPress = {
                             isLongPressBoosting = true
                             exoPlayer.setPlaybackSpeed(3.0f)
