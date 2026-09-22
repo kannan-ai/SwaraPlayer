@@ -56,9 +56,7 @@ fun FolderVideosScreen(
                 showBackButton = true,
                 onBack = onBack,
                 onHelp = {},
-                onSearchQueryChange = {},
                 onSortSelect = {},
-                onSettings = {},
             )
         },
         containerColor = colors.background,

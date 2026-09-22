@@ -180,12 +180,10 @@ class MainActivity : ComponentActivity() {
                                         .padding(innerPadding),
                                 ) {
                                     when (currentNavTab) {
-                                        AppNavTab.LOCAL, AppNavTab.HISTORY -> {
+                                        AppNavTab.LOCAL, AppNavTab.SEARCH -> {
                                             VideoLibraryScreen(
                                                 viewModel = viewModel,
                                                 onSelectVideo = { video -> activeVideo = video },
-                                                onOpenMusic = { currentNavTab = AppNavTab.MUSIC },
-                                                onOpenSettings = { currentNavTab = AppNavTab.SETTINGS },
                                                 onNavigateBack = { finish() },
                                             )
                                         }

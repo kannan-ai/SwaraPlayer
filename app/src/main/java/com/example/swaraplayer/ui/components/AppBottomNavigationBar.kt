@@ -3,8 +3,8 @@ package com.example.swaraplayer.ui.components
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
@@ -22,7 +22,7 @@ import com.example.swaraplayer.ui.theme.LocalAppColors
 enum class AppNavTab(val label: String, val icon: ImageVector) {
     LOCAL("Local", Icons.Default.Folder),
     MUSIC("Music", Icons.Default.MusicNote),
-    HISTORY("History", Icons.Default.History),
+    SEARCH("Search", Icons.Default.Search),
     SETTINGS("Settings", Icons.Default.Settings),
 }
 
