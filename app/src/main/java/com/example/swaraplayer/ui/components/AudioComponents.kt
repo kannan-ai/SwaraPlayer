@@ -54,19 +54,19 @@ fun MiniPlayerBar(
     val colors = LocalAppColors.current
 
     Surface(
-        color = colors.surface.copy(alpha = 0.95f),
+        color = Color(0xFF23232C),
         shape = RoundedCornerShape(16.dp),
         shadowElevation = 8.dp,
         modifier = modifier
             .fillMaxWidth()
             .height(64.dp)
             .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp),
+            .padding(horizontal = 4.dp),
     ) {
         Row(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 8.dp),
+                .padding(horizontal = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
@@ -105,15 +105,16 @@ fun MiniPlayerBar(
                 Column {
                     Text(
                         text = currentTrack.title,
-                        color = colors.textPrimary,
-                        fontSize = 13.sp,
+                        color = Color.White,
+                        fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
+                    Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = currentTrack.artist,
-                        color = colors.textSecondary,
+                        color = colors.accentOrange, // Orange artist text matching screenshot
                         fontSize = 11.sp,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -121,20 +122,22 @@ fun MiniPlayerBar(
                 }
             }
 
-            // Controls
+            // Controls: Orange Pause/Play + Skip Next
             Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onPlayPause) {
+                IconButton(onClick = onPlayPause, modifier = Modifier.size(36.dp)) {
                     Icon(
                         imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                         contentDescription = "Play/Pause",
-                        tint = colors.textPrimary,
+                        tint = colors.accentOrange,
+                        modifier = Modifier.size(26.dp),
                     )
                 }
-                IconButton(onClick = onSkipNext) {
+                IconButton(onClick = onSkipNext, modifier = Modifier.size(36.dp)) {
                     Icon(
                         imageVector = Icons.Default.SkipNext,
                         contentDescription = "Skip Next",
-                        tint = colors.textPrimary,
+                        tint = Color.White,
+                        modifier = Modifier.size(26.dp),
                     )
                 }
             }
