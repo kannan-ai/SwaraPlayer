@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -60,26 +61,30 @@ fun LibraryTopBar(
             .fillMaxWidth()
             .background(colors.background)
             .statusBarsPadding()
-            .padding(horizontal = 8.dp, vertical = 6.dp),
+            .padding(horizontal = 10.dp, vertical = 2.dp)
+            .height(44.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (isSearching) {
-            // Expandable Real-Time Search Bar
+            // Compact Real-Time Search Bar
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { query ->
                     searchQuery = query
                     onSearchQueryChange(query)
                 },
-                placeholder = { Text("Search videos or folders...", color = colors.textSecondary, fontSize = 13.sp) },
+                placeholder = { Text("Search videos or folders...", color = colors.textSecondary, fontSize = 12.sp) },
                 singleLine = true,
                 trailingIcon = {
-                    IconButton(onClick = {
-                        isSearching = false
-                        searchQuery = ""
-                        onSearchQueryChange("")
-                    }) {
-                        Icon(Icons.Default.Close, contentDescription = "Close Search", tint = colors.textPrimary)
+                    IconButton(
+                        onClick = {
+                            isSearching = false
+                            searchQuery = ""
+                            onSearchQueryChange("")
+                        },
+                        modifier = Modifier.size(32.dp),
+                    ) {
+                        Icon(Icons.Default.Close, contentDescription = "Close Search", tint = colors.textPrimary, modifier = Modifier.size(18.dp))
                     }
                 },
                 colors = OutlinedTextFieldDefaults.colors(
@@ -90,16 +95,17 @@ fun LibraryTopBar(
                 ),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(50.dp),
+                    .height(42.dp),
             )
         } else {
             // Back button shown ONLY if inside a subfolder
             if (showBackButton) {
-                IconButton(onClick = onBack) {
+                IconButton(onClick = onBack, modifier = Modifier.size(34.dp)) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Back",
                         tint = colors.textPrimary,
+                        modifier = Modifier.size(18.dp),
                     )
                 }
             }
@@ -107,51 +113,52 @@ fun LibraryTopBar(
             Text(
                 text = title,
                 color = colors.textPrimary,
-                fontSize = 18.sp,
+                fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier
                     .weight(1f)
-                    .padding(start = 4.dp),
+                    .padding(start = if (showBackButton) 4.dp else 0.dp),
             )
 
-            // Prominent Music Player Button
+            // Compact Action Buttons
             if (onOpenMusic != null) {
-                IconButton(onClick = onOpenMusic) {
+                IconButton(onClick = onOpenMusic, modifier = Modifier.size(34.dp)) {
                     Icon(
                         imageVector = Icons.Default.MusicNote,
                         contentDescription = "Music Player",
                         tint = colors.accentOrange,
+                        modifier = Modifier.size(19.dp),
                     )
                 }
             }
 
-            // Interactive Gestures Help Guide Button
-            IconButton(onClick = onHelp) {
+            IconButton(onClick = onHelp, modifier = Modifier.size(34.dp)) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Outlined.HelpOutline,
                     contentDescription = "Help Guide",
                     tint = colors.textPrimary,
+                    modifier = Modifier.size(19.dp),
                 )
             }
 
-            // Search Icon
-            IconButton(onClick = { isSearching = true }) {
+            IconButton(onClick = { isSearching = true }, modifier = Modifier.size(34.dp)) {
                 Icon(
                     imageVector = Icons.Default.Search,
                     contentDescription = "Search",
                     tint = colors.textPrimary,
+                    modifier = Modifier.size(19.dp),
                 )
             }
 
-            // Sort Menu Icon & Dropdown
             Box {
-                IconButton(onClick = { showSortMenu = true }) {
+                IconButton(onClick = { showSortMenu = true }, modifier = Modifier.size(34.dp)) {
                     Icon(
                         imageVector = Icons.Default.FilterList,
                         contentDescription = "Sort Options",
                         tint = colors.textPrimary,
+                        modifier = Modifier.size(19.dp),
                     )
                 }
 
@@ -172,12 +179,12 @@ fun LibraryTopBar(
                 }
             }
 
-            // Settings Icon
-            IconButton(onClick = onSettings) {
+            IconButton(onClick = onSettings, modifier = Modifier.size(34.dp)) {
                 Icon(
                     imageVector = Icons.Default.Settings,
                     contentDescription = "Settings",
                     tint = colors.textPrimary,
+                    modifier = Modifier.size(19.dp),
                 )
             }
         }
