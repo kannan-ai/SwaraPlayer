@@ -32,7 +32,6 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -59,11 +58,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
 import com.example.swaraplayer.data.Album
 import com.example.swaraplayer.data.Artist
 import com.example.swaraplayer.data.MediaFile
 import com.example.swaraplayer.player.PlayerViewModel
+import com.example.swaraplayer.ui.components.AudioThumbnailImage
 import com.example.swaraplayer.ui.components.MiniPlayerBar
 import com.example.swaraplayer.ui.components.MoveToFolderDialog
 import com.example.swaraplayer.ui.components.SelectionActionBar
@@ -331,21 +330,11 @@ private fun AudioTrackListItem(
                     .background(colors.surface),
                 contentAlignment = Alignment.Center,
             ) {
-                if (track.albumArtUri != null) {
-                    AsyncImage(
-                        model = track.albumArtUri,
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                } else {
-                    Icon(
-                        imageVector = Icons.Default.MusicNote,
-                        contentDescription = null,
-                        tint = if (isPlayingTrack) colors.accentOrange else colors.folderIconTint,
-                        modifier = Modifier.size(24.dp),
-                    )
-                }
+                AudioThumbnailImage(
+                    albumId = track.albumId,
+                    audioUri = track.uri,
+                    modifier = Modifier.fillMaxSize(),
+                )
 
                 if (isSelected) {
                     Box(
@@ -428,21 +417,11 @@ private fun ArtistsTabContent(
                         contentAlignment = Alignment.Center,
                     ) {
                         val firstTrack = artist.tracks.firstOrNull()
-                        if (firstTrack?.albumArtUri != null) {
-                            AsyncImage(
-                                model = firstTrack.albumArtUri,
-                                contentDescription = null,
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier.fillMaxSize(),
-                            )
-                        } else {
-                            Icon(
-                                imageVector = Icons.Default.MusicNote,
-                                contentDescription = null,
-                                tint = colors.accentOrange,
-                                modifier = Modifier.size(24.dp),
-                            )
-                        }
+                        AudioThumbnailImage(
+                            albumId = firstTrack?.albumId ?: 0L,
+                            audioUri = firstTrack?.uri,
+                            modifier = Modifier.fillMaxSize(),
+                        )
                     }
 
                     Spacer(modifier = Modifier.width(16.dp))
@@ -496,26 +475,12 @@ private fun AlbumsTabContent(
                         .background(colors.surface)
                         .clickable { onAlbumClick(album) },
                 ) {
-                    if (album.albumArtUri != null) {
-                        AsyncImage(
-                            model = album.albumArtUri,
-                            contentDescription = null,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize(),
-                        )
-                    } else {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.MusicNote,
-                                contentDescription = null,
-                                tint = colors.folderIconTint,
-                                modifier = Modifier.size(48.dp),
-                            )
-                        }
-                    }
+                    val firstTrack = album.tracks.firstOrNull()
+                    AudioThumbnailImage(
+                        albumId = album.id,
+                        audioUri = firstTrack?.uri,
+                        modifier = Modifier.fillMaxSize(),
+                    )
 
                     // Dark Gradient Overlay with Album Title & Artist
                     Box(

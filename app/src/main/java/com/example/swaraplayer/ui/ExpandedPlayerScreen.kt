@@ -23,7 +23,6 @@ import androidx.compose.material.icons.filled.Equalizer
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Repeat
@@ -56,9 +55,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
 import com.example.swaraplayer.data.SleepTimerMode
 import com.example.swaraplayer.player.PlayerViewModel
+import com.example.swaraplayer.ui.components.AudioThumbnailImage
 import com.example.swaraplayer.ui.components.AudioXRayDialog
 import com.example.swaraplayer.ui.components.formatTime
 import com.example.swaraplayer.ui.theme.LocalAppColors
@@ -173,7 +172,7 @@ fun ExpandedPlayerScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.SpaceBetween,
             ) {
-                // High-Res Artwork Display
+                // High-Res Artwork Display via Multi-Tier AudioThumbnailImage
                 Surface(
                     color = colors.surface.copy(alpha = 0.8f),
                     shape = RoundedCornerShape(24.dp),
@@ -183,26 +182,12 @@ fun ExpandedPlayerScreen(
                         .aspectRatio(1f)
                         .clip(RoundedCornerShape(24.dp)),
                 ) {
-                    if (track.albumArtUri != null) {
-                        AsyncImage(
-                            model = track.albumArtUri,
-                            contentDescription = null,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize(),
-                        )
-                    } else {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.MusicNote,
-                                contentDescription = null,
-                                tint = colors.folderIconTint,
-                                modifier = Modifier.size(96.dp),
-                            )
-                        }
-                    }
+                    AudioThumbnailImage(
+                        albumId = track.albumId,
+                        audioUri = track.uri,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize(),
+                    )
                 }
 
                 // Quick Action Pills Row (Equalizer & Sleep Timer)
@@ -262,7 +247,7 @@ fun ExpandedPlayerScreen(
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = "${metadata.cleanArtist} • ${metadata.cleanAlbum}",
-                        color = colors.accentOrange, // Orange artist text matching screenshot
+                        color = colors.accentOrange,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.SemiBold,
                         maxLines = 1,
