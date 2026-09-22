@@ -132,6 +132,7 @@ fun VideoLibraryScreen(
         FolderVideosScreen(
             folderName = selectedFolder!!.name,
             videos = folderVideos,
+            viewModel = viewModel,
             isGridView = isGridView,
             onToggleViewMode = { viewModel.toggleViewMode() },
             onVideoClick = { videoItem ->

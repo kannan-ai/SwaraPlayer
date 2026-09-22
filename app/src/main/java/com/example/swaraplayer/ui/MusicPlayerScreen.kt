@@ -1,7 +1,9 @@
 package com.example.swaraplayer.ui
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,6 +27,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.MoreVert
@@ -49,6 +52,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -59,6 +63,7 @@ import com.example.swaraplayer.data.Artist
 import com.example.swaraplayer.data.MediaFile
 import com.example.swaraplayer.player.PlayerViewModel
 import com.example.swaraplayer.ui.components.MiniPlayerBar
+import com.example.swaraplayer.ui.components.SelectionActionBar
 import com.example.swaraplayer.ui.components.formatTime
 import com.example.swaraplayer.ui.theme.LocalAppColors
 import java.util.Locale
@@ -70,12 +75,15 @@ fun MusicPlayerScreen(
     onOpenSettings: () -> Unit,
     onNavigateBack: () -> Unit,
 ) {
+    val context = LocalContext.current
     val colors = LocalAppColors.current
     val audioTracks by viewModel.audioList.collectAsState()
     val artistsList by viewModel.artists.collectAsState()
     val albumsList by viewModel.albums.collectAsState()
     val currentTrack by viewModel.currentAudioTrack.collectAsState()
     val isPlaying by viewModel.isAudioPlaying.collectAsState()
+    val selectedAudioIds by viewModel.selectedAudioIds.collectAsState()
+    val isSelectionMode by viewModel.isSelectionMode.collectAsState()
 
     var selectedTab by remember { mutableIntStateOf(0) } // 0: Songs, 1: Artists, 2: Albums, 3: Folders
     val tabs = listOf("Songs", "Artists", "Albums", "Folders")
@@ -106,7 +114,7 @@ fun MusicPlayerScreen(
                     }
 
                     Text(
-                        text = "Music Library",
+                        text = if (isSelectionMode) "${selectedAudioIds.size} Selected" else "Music Library",
                         color = colors.textPrimary,
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
@@ -166,7 +174,16 @@ fun MusicPlayerScreen(
             }
         },
         bottomBar = {
-            if (currentTrack != null) {
+            if (isSelectionMode) {
+                Box(modifier = Modifier.padding(12.dp)) {
+                    SelectionActionBar(
+                        selectedCount = selectedAudioIds.size,
+                        onClearSelection = { viewModel.clearSelections() },
+                        onShare = { viewModel.shareSelectedMedia(context) },
+                        onDelete = { viewModel.deleteSelectedMedia(context) },
+                    )
+                }
+            } else if (currentTrack != null) {
                 Box(modifier = Modifier.padding(12.dp)) {
                     MiniPlayerBar(
                         currentTrack = currentTrack,
@@ -190,7 +207,10 @@ fun MusicPlayerScreen(
                 0 -> SongsTabContent(
                     audioTracks = audioTracks,
                     currentTrack = currentTrack,
-                    onTrackClick = { track -> viewModel.playAudioTrack(track) },
+                    selectedAudioIds = selectedAudioIds,
+                    isSelectionMode = isSelectionMode,
+                    onToggleSelect = { id -> viewModel.toggleAudioSelection(id) },
+                    onTrackClick = { track -> viewModel.playAudioTrack(track, context) },
                 )
                 1 -> ArtistsTabContent(
                     artists = artistsList,
@@ -213,6 +233,9 @@ fun MusicPlayerScreen(
 private fun SongsTabContent(
     audioTracks: List<MediaFile>,
     currentTrack: MediaFile?,
+    selectedAudioIds: Set<Long>,
+    isSelectionMode: Boolean,
+    onToggleSelect: (Long) -> Unit,
     onTrackClick: (MediaFile) -> Unit,
 ) {
     val colors = LocalAppColors.current
@@ -239,7 +262,10 @@ private fun SongsTabContent(
             items(audioTracks) { track ->
                 AudioTrackListItem(
                     track = track,
-                    isSelected = currentTrack?.id == track.id,
+                    isPlayingTrack = currentTrack?.id == track.id,
+                    isSelected = selectedAudioIds.contains(track.id),
+                    isSelectionMode = isSelectionMode,
+                    onToggleSelect = onToggleSelect,
                     onClick = { onTrackClick(track) },
                 )
             }
@@ -247,10 +273,14 @@ private fun SongsTabContent(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun AudioTrackListItem(
     track: MediaFile,
+    isPlayingTrack: Boolean,
     isSelected: Boolean,
+    isSelectionMode: Boolean,
+    onToggleSelect: (Long) -> Unit,
     onClick: () -> Unit,
 ) {
     val colors = LocalAppColors.current
@@ -259,7 +289,14 @@ private fun AudioTrackListItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .combinedClickable(
+                onClick = {
+                    if (isSelectionMode) onToggleSelect(track.id) else onClick()
+                },
+                onLongClick = {
+                    onToggleSelect(track.id)
+                },
+            )
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -287,9 +324,25 @@ private fun AudioTrackListItem(
                     Icon(
                         imageVector = Icons.Default.MusicNote,
                         contentDescription = null,
-                        tint = if (isSelected) colors.accentOrange else colors.folderIconTint,
+                        tint = if (isPlayingTrack) colors.accentOrange else colors.folderIconTint,
                         modifier = Modifier.size(24.dp),
                     )
+                }
+
+                if (isSelected) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.Black.copy(alpha = 0.45f)),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = "Selected",
+                            tint = colors.accentOrange,
+                            modifier = Modifier.size(24.dp),
+                        )
+                    }
                 }
             }
 
@@ -298,7 +351,7 @@ private fun AudioTrackListItem(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = track.title,
-                    color = if (isSelected) colors.accentOrange else colors.textPrimary,
+                    color = if (isPlayingTrack) colors.accentOrange else colors.textPrimary,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,

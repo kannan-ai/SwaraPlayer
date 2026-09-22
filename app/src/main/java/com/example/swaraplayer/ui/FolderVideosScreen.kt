@@ -1,8 +1,9 @@
 package com.example.swaraplayer.ui
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,22 +24,28 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.swaraplayer.player.PlayerViewModel
 import com.example.swaraplayer.ui.components.LibraryTopBar
+import com.example.swaraplayer.ui.components.SelectionActionBar
 import com.example.swaraplayer.ui.components.VideoThumbnailImage
 import com.example.swaraplayer.ui.theme.LocalAppColors
 import com.example.swaraplayer.ui.theme.VideoItem
@@ -47,24 +54,42 @@ import com.example.swaraplayer.ui.theme.VideoItem
 fun FolderVideosScreen(
     folderName: String,
     videos: List<VideoItem>,
+    viewModel: PlayerViewModel,
     isGridView: Boolean = true,
     onToggleViewMode: () -> Unit,
     onVideoClick: (VideoItem) -> Unit,
     onBack: () -> Unit,
 ) {
+    val context = LocalContext.current
     val colors = LocalAppColors.current
+    val selectedVideoIds by viewModel.selectedVideoIds.collectAsState()
+    val isSelectionMode by viewModel.isSelectionMode.collectAsState()
 
     Scaffold(
         topBar = {
             LibraryTopBar(
-                title = folderName,
+                title = if (isSelectionMode) "${selectedVideoIds.size} Selected" else folderName,
                 showBackButton = true,
                 isGridView = isGridView,
                 onToggleViewMode = onToggleViewMode,
-                onBack = onBack,
+                onBack = {
+                    if (isSelectionMode) viewModel.clearSelections() else onBack()
+                },
                 onHelp = {},
                 onSortSelect = {},
             )
+        },
+        bottomBar = {
+            if (isSelectionMode) {
+                Box(modifier = Modifier.padding(12.dp)) {
+                    SelectionActionBar(
+                        selectedCount = selectedVideoIds.size,
+                        onClearSelection = { viewModel.clearSelections() },
+                        onShare = { viewModel.shareSelectedMedia(context) },
+                        onDelete = { viewModel.deleteSelectedMedia(context) },
+                    )
+                }
+            }
         },
         containerColor = colors.background,
     ) { innerPadding ->
@@ -79,7 +104,13 @@ fun FolderVideosScreen(
                     .padding(innerPadding),
             ) {
                 items(videos) { video ->
-                    VideoGridItem(video = video, onClick = { onVideoClick(video) })
+                    VideoGridItem(
+                        video = video,
+                        isSelected = selectedVideoIds.contains(video.id),
+                        isSelectionMode = isSelectionMode,
+                        onToggleSelect = { id -> viewModel.toggleVideoSelection(id) },
+                        onClick = { onVideoClick(video) },
+                    )
                 }
             }
         } else {
@@ -91,21 +122,41 @@ fun FolderVideosScreen(
                     .padding(innerPadding),
             ) {
                 items(videos) { video ->
-                    VideoListItem(video = video, onClick = { onVideoClick(video) })
+                    VideoListItem(
+                        video = video,
+                        isSelected = selectedVideoIds.contains(video.id),
+                        isSelectionMode = isSelectionMode,
+                        onToggleSelect = { id -> viewModel.toggleVideoSelection(id) },
+                        onClick = { onVideoClick(video) },
+                    )
                 }
             }
         }
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun VideoGridItem(video: VideoItem, onClick: () -> Unit) {
+fun VideoGridItem(
+    video: VideoItem,
+    isSelected: Boolean,
+    isSelectionMode: Boolean,
+    onToggleSelect: (Long) -> Unit,
+    onClick: () -> Unit,
+) {
     val colors = LocalAppColors.current
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
+            .combinedClickable(
+                onClick = {
+                    if (isSelectionMode) onToggleSelect(video.id) else onClick()
+                },
+                onLongClick = {
+                    onToggleSelect(video.id)
+                },
+            ),
     ) {
         Box(
             modifier = Modifier
@@ -121,8 +172,25 @@ fun VideoGridItem(video: VideoItem, onClick: () -> Unit) {
                 modifier = Modifier.fillMaxSize(),
             )
 
+            // Selection Checkmark Overlay
+            if (isSelected) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.45f)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.CheckCircle,
+                        contentDescription = "Selected",
+                        tint = colors.accentOrange,
+                        modifier = Modifier.size(32.dp),
+                    )
+                }
+            }
+
             // Capsule "NEW" Badge Pill for Unopened Videos with Dark Outline Border
-            if (video.isUnopened) {
+            if (video.isUnopened && !isSelected) {
                 Surface(
                     color = colors.badgeRed,
                     shape = RoundedCornerShape(6.dp),
@@ -143,7 +211,7 @@ fun VideoGridItem(video: VideoItem, onClick: () -> Unit) {
             }
 
             // Bottom Edge Watch Progress Line for partially watched videos
-            if (!video.isUnopened) {
+            if (!video.isUnopened && !isSelected) {
                 Box(
                     modifier = Modifier
                         .align(Alignment.BottomStart)
@@ -154,19 +222,21 @@ fun VideoGridItem(video: VideoItem, onClick: () -> Unit) {
             }
 
             // Duration Pill
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(4.dp)
-                    .background(colors.background.copy(alpha = 0.85f), RoundedCornerShape(3.dp))
-                    .padding(horizontal = 4.dp, vertical = 1.dp),
-            ) {
-                Text(
-                    text = video.durationText,
-                    color = colors.textPrimary,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Medium,
-                )
+            if (!isSelected) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(4.dp)
+                        .background(colors.background.copy(alpha = 0.85f), RoundedCornerShape(3.dp))
+                        .padding(horizontal = 4.dp, vertical = 1.dp),
+                ) {
+                    Text(
+                        text = video.durationText,
+                        color = colors.textPrimary,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Medium,
+                    )
+                }
             }
         }
 
@@ -195,14 +265,28 @@ fun VideoGridItem(video: VideoItem, onClick: () -> Unit) {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun VideoListItem(video: VideoItem, onClick: () -> Unit) {
+fun VideoListItem(
+    video: VideoItem,
+    isSelected: Boolean,
+    isSelectionMode: Boolean,
+    onToggleSelect: (Long) -> Unit,
+    onClick: () -> Unit,
+) {
     val colors = LocalAppColors.current
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .combinedClickable(
+                onClick = {
+                    if (isSelectionMode) onToggleSelect(video.id) else onClick()
+                },
+                onLongClick = {
+                    onToggleSelect(video.id)
+                },
+            )
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -225,7 +309,23 @@ fun VideoListItem(video: VideoItem, onClick: () -> Unit) {
                     modifier = Modifier.fillMaxSize(),
                 )
 
-                if (video.isUnopened) {
+                if (isSelected) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.Black.copy(alpha = 0.45f)),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = "Selected",
+                            tint = colors.accentOrange,
+                            modifier = Modifier.size(24.dp),
+                        )
+                    }
+                }
+
+                if (video.isUnopened && !isSelected) {
                     Surface(
                         color = colors.badgeRed,
                         shape = RoundedCornerShape(4.dp),
@@ -245,7 +345,7 @@ fun VideoListItem(video: VideoItem, onClick: () -> Unit) {
                     }
                 }
 
-                if (!video.isUnopened) {
+                if (!video.isUnopened && !isSelected) {
                     Box(
                         modifier = Modifier
                             .align(Alignment.BottomStart)
@@ -255,19 +355,21 @@ fun VideoListItem(video: VideoItem, onClick: () -> Unit) {
                     )
                 }
 
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(2.dp)
-                        .background(colors.background.copy(alpha = 0.85f), RoundedCornerShape(2.dp))
-                        .padding(horizontal = 3.dp, vertical = 1.dp),
-                ) {
-                    Text(
-                        text = video.durationText,
-                        color = colors.textPrimary,
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.Medium,
-                    )
+                if (!isSelected) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(2.dp)
+                            .background(colors.background.copy(alpha = 0.85f), RoundedCornerShape(2.dp))
+                            .padding(horizontal = 3.dp, vertical = 1.dp),
+                    ) {
+                        Text(
+                            text = video.durationText,
+                            color = colors.textPrimary,
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Medium,
+                        )
+                    }
                 }
             }
 
