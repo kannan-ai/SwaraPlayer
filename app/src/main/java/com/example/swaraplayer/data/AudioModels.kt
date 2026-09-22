@@ -21,6 +21,7 @@ data class Artist(
     val name: String,
     val trackCount: Int,
     val albumCount: Int = 1,
+    val tracks: List<MediaFile> = emptyList(),
 )
 
 data class Album(
@@ -29,6 +30,7 @@ data class Album(
     val artist: String,
     val albumArtUri: Uri? = null,
     val trackCount: Int,
+    val tracks: List<MediaFile> = emptyList(),
 )
 
 data class SanitizedMetadata(

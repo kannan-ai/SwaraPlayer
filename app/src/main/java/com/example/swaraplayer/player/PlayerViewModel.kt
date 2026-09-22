@@ -2,13 +2,22 @@ package com.example.swaraplayer.player
 
 import android.app.Application
 import android.content.ContentUris
+import android.content.Context
+import android.graphics.ImageDecoder
+import android.net.Uri
+import android.os.Build
 import android.provider.MediaStore
+import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.palette.graphics.Palette
+import com.example.swaraplayer.data.Album
+import com.example.swaraplayer.data.Artist
 import com.example.swaraplayer.data.AspectRatioMode
 import com.example.swaraplayer.data.AudioPreset
 import com.example.swaraplayer.data.MediaFile
 import com.example.swaraplayer.data.OrientationMode
+import com.example.swaraplayer.data.SanitizedMetadata
 import com.example.swaraplayer.data.SleepTimerMode
 import com.example.swaraplayer.data.SortOrder
 import com.example.swaraplayer.data.SubtitleStyle
@@ -16,6 +25,7 @@ import com.example.swaraplayer.data.TrackOption
 import com.example.swaraplayer.data.VideoFile
 import com.example.swaraplayer.data.VideoFolder
 import com.example.swaraplayer.data.VideoPositionRepository
+import com.example.swaraplayer.ui.components.formatTime
 import com.example.swaraplayer.ui.theme.AppThemeMode
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -55,10 +65,13 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
 
     // Audio / Music Player State
     val audioList = MutableStateFlow<List<MediaFile>>(emptyList())
+    val artists = MutableStateFlow<List<Artist>>(emptyList())
+    val albums = MutableStateFlow<List<Album>>(emptyList())
     val currentAudioTrack = MutableStateFlow<MediaFile?>(null)
     val isAudioPlaying = MutableStateFlow(false)
     val audioCurrentPosition = MutableStateFlow(0L)
     val audioDuration = MutableStateFlow(0L)
+    val dominantColor = MutableStateFlow(Color(0xFF1E1E2C))
 
     val subtitleStyle = MutableStateFlow(SubtitleStyle())
     val audioTracksList = MutableStateFlow<List<TrackOption>>(emptyList())
@@ -194,6 +207,16 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                 }
             }
             audioList.value = audioFiles
+
+            artists.value = audioFiles.groupBy { it.artist }.map { (name, tracks) ->
+                Artist(name = name, trackCount = tracks.size, tracks = tracks)
+            }
+
+            albums.value = audioFiles.groupBy { it.album }.map { (albumTitle, tracks) ->
+                val first = tracks.first()
+                Album(id = first.id, title = albumTitle, artist = first.artist, albumArtUri = first.albumArtUri, trackCount = tracks.size, tracks = tracks)
+            }
+
             if (currentAudioTrack.value == null && audioFiles.isNotEmpty()) {
                 currentAudioTrack.value = audioFiles.first()
                 audioDuration.value = audioFiles.first().durationMs
@@ -201,11 +224,39 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    fun playAudioTrack(track: MediaFile) {
+    fun playAudioTrack(track: MediaFile, context: Context? = null) {
         currentAudioTrack.value = track
         audioDuration.value = track.durationMs
         audioCurrentPosition.value = 0L
         isAudioPlaying.value = true
+        if (context != null) {
+            extractPaletteColor(context, track.albumArtUri)
+        }
+    }
+
+    fun extractPaletteColor(context: Context, uri: Uri?) {
+        if (uri == null) {
+            dominantColor.value = Color(0xFF1E1E2C)
+            return
+        }
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val bitmap = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    val source = ImageDecoder.createSource(context.contentResolver, uri)
+                    ImageDecoder.decodeBitmap(source) { decoder, _, _ -> decoder.setTargetSampleSize(2) }
+                } else {
+                    @Suppress("DEPRECATION")
+                    MediaStore.Images.Media.getBitmap(context.contentResolver, uri)
+                }
+
+                val palette = Palette.from(bitmap).generate()
+                val swatch = palette.dominantSwatch ?: palette.vibrantSwatch ?: palette.darkVibrantSwatch
+                val colorInt = swatch?.rgb ?: android.graphics.Color.parseColor("#1E1E2C")
+                dominantColor.value = Color(colorInt)
+            } catch (_: Exception) {
+                dominantColor.value = Color(0xFF1E1E2C)
+            }
+        }
     }
 
     fun toggleAudioPlayPause() {
@@ -305,5 +356,32 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
 
     suspend fun getSavedPosition(uriStr: String): Long {
         return positionRepo.getPosition(uriStr)
+    }
+
+    companion object {
+        fun sanitizeTrackMetadata(file: MediaFile?): SanitizedMetadata {
+            if (file == null) return SanitizedMetadata("Unknown Track", "Unknown Artist", "Unknown Album", "MP3", "320 kbps", "44100 Hz", "00:00", "")
+
+            var title = file.title.replace(Regex("(?i)\\.(mp3|m4a|flac|wav|aac|ogg)$"), "").replace('_', ' ')
+            val parts = title.split('-').map { it.trim() }
+
+            val cleanTitle = if (parts.size >= 2) parts.last() else title
+            val cleanTitleFinal = cleanTitle.replace(Regex("(?i)\\b(320kbps|128kbps|official|lyrics|hd|4k|mp3)\\b"), "")
+                .replace(Regex("[\\[\\]()]"), " ").trim()
+
+            val artist = if (file.artist.isNotBlank() && file.artist != "<unknown>") file.artist
+            else if (parts.size >= 2) parts.first() else "Unknown Artist"
+
+            return SanitizedMetadata(
+                cleanTitle = if (cleanTitleFinal.isNotBlank()) cleanTitleFinal else file.title,
+                cleanArtist = artist,
+                cleanAlbum = file.album,
+                fileFormat = if (file.path.contains('.')) file.path.substringAfterLast('.').uppercase() else "MP3",
+                bitrateFormatted = "${file.bitrateKbps} kbps",
+                sampleRateFormatted = "${file.sampleRateHz} Hz",
+                durationFormatted = formatTime(file.durationMs),
+                filePath = file.path,
+            )
+        }
     }
 }
