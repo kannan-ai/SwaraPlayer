@@ -218,10 +218,13 @@ class MainActivity : ComponentActivity() {
 
     override fun onUserLeaveHint() {
         super.onUserLeaveHint()
-        val params = PictureInPictureParams.Builder()
-            .setAspectRatio(Rational(16, 9))
-            .build()
-        enterPictureInPictureMode(params)
+        // Only trigger Picture-in-Picture mode if video playback is actively playing
+        if (viewModel.isPlaying.value) {
+            val params = PictureInPictureParams.Builder()
+                .setAspectRatio(Rational(16, 9))
+                .build()
+            enterPictureInPictureMode(params)
+        }
     }
 
     override fun onPictureInPictureModeChanged(
