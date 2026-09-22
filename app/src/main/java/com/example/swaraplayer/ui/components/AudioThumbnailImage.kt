@@ -59,11 +59,14 @@ fun AudioThumbnailImage(
                 if (audioUri != null) {
                     try {
                         val retriever = MediaMetadataRetriever()
-                        retriever.setDataSource(context, audioUri)
-                        val embeddedArt = retriever.embeddedPicture
-                        retriever.release()
-                        if (embeddedArt != null) {
-                            bitmap = BitmapFactory.decodeByteArray(embeddedArt, 0, embeddedArt.size)
+                        try {
+                            retriever.setDataSource(context, audioUri)
+                            val embeddedArt = retriever.embeddedPicture
+                            if (embeddedArt != null) {
+                                bitmap = BitmapFactory.decodeByteArray(embeddedArt, 0, embeddedArt.size)
+                            }
+                        } finally {
+                            retriever.release()
                         }
                     } catch (_: Exception) {}
                 }

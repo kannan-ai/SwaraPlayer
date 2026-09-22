@@ -15,6 +15,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -31,14 +33,18 @@ import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.SpeakerGroup
 import androidx.compose.material.icons.filled.Timer
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -55,6 +61,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.swaraplayer.data.AudioPreset
 import com.example.swaraplayer.data.SleepTimerMode
 import com.example.swaraplayer.player.PlayerViewModel
 import com.example.swaraplayer.ui.components.AudioThumbnailImage
@@ -75,8 +82,10 @@ fun ExpandedPlayerScreen(
     val duration by viewModel.audioDuration.collectAsState()
     val dominantColor by viewModel.dominantColor.collectAsState()
     val sleepTimer by viewModel.sleepTimerMode.collectAsState()
+    val currentEqPreset by viewModel.currentEqualizerPreset.collectAsState()
 
     var showXRayDialog by remember { mutableStateOf(false) }
+    var showEqDialog by remember { mutableStateOf(false) }
 
     val track = currentTrack ?: return
     val metadata = remember(track) { PlayerViewModel.sanitizeTrackMetadata(track) }
@@ -198,15 +207,15 @@ fun ExpandedPlayerScreen(
                     Surface(
                         color = Color(0xFF2E2E38),
                         shape = RoundedCornerShape(20.dp),
-                        modifier = Modifier.clickable {},
+                        modifier = Modifier.clickable { showEqDialog = true },
                     ) {
                         Row(
                             modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Icon(Icons.Default.Equalizer, contentDescription = null, tint = Color.LightGray, modifier = Modifier.size(16.dp))
+                            Icon(Icons.Default.Equalizer, contentDescription = null, tint = colors.accentOrange, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Equalizer", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                            Text(currentEqPreset.label, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Medium)
                         }
                     }
 
@@ -316,6 +325,59 @@ fun ExpandedPlayerScreen(
                 }
             }
         }
+    }
+
+    // Audio Equalizer Presets Modal Dialog
+    if (showEqDialog) {
+        AlertDialog(
+            onDismissRequest = { showEqDialog = false },
+            containerColor = Color(0xFF1E1E2C),
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Equalizer, contentDescription = null, tint = colors.accentOrange)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Equalizer Presets", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                }
+            },
+            text = {
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    items(AudioPreset.entries.toTypedArray()) { preset ->
+                        val isSelected = currentEqPreset == preset
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable {
+                                    viewModel.currentEqualizerPreset.value = preset
+                                    showEqDialog = false
+                                }
+                                .padding(horizontal = 8.dp, vertical = 6.dp),
+                        ) {
+                            RadioButton(
+                                selected = isSelected,
+                                onClick = {
+                                    viewModel.currentEqualizerPreset.value = preset
+                                    showEqDialog = false
+                                },
+                                colors = RadioButtonDefaults.colors(selectedColor = colors.accentOrange, unselectedColor = Color.Gray),
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(preset.label, color = if (isSelected) colors.accentOrange else Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showEqDialog = false }) {
+                    Text("Close", color = colors.accentOrange, fontWeight = FontWeight.Bold)
+                }
+            },
+            shape = RoundedCornerShape(16.dp),
+        )
     }
 
     // Audio X-Ray Modal Dialog Inspector

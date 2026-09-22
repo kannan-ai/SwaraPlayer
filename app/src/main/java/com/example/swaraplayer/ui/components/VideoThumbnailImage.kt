@@ -52,9 +52,12 @@ fun VideoThumbnailImage(
             } catch (_: Exception) {
                 try {
                     val retriever = MediaMetadataRetriever()
-                    retriever.setDataSource(context, uri)
-                    bitmap = retriever.getFrameAtTime(1000000, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
-                    retriever.release()
+                    try {
+                        retriever.setDataSource(context, uri)
+                        bitmap = retriever.getFrameAtTime(1000000, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+                    } finally {
+                        retriever.release()
+                    }
                 } catch (_: Exception) {}
             }
         }
