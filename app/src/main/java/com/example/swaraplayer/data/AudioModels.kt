@@ -10,6 +10,7 @@ data class MediaFile(
     val durationMs: Long,
     val uri: Uri,
     val albumArtUri: Uri? = null,
+    val albumId: Long = 0L,
     val sizeBytes: Long = 0L,
     val path: String = "",
     val bitrateKbps: Int = 320,

@@ -3,10 +3,10 @@ package com.example.swaraplayer.player
 import android.app.Application
 import android.content.ContentUris
 import android.content.Context
-import android.graphics.ImageDecoder
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
+import android.util.Size
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -236,6 +236,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                             durationMs = cursor.getLong(durCol),
                             uri = contentUri,
                             albumArtUri = artUri,
+                            albumId = albumId,
                             sizeBytes = cursor.getLong(sizeCol),
                             path = cursor.getString(dataCol) ?: "",
                         ),
@@ -273,29 +274,32 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         }
 
         if (context != null) {
-            extractPaletteColor(context, track.albumArtUri)
+            extractPaletteColor(context, track.albumId)
         }
     }
 
-    fun extractPaletteColor(context: Context, uri: Uri?) {
-        if (uri == null) {
-            dominantColor.value = Color(0xFF1E1E2C)
-            return
-        }
+    fun extractPaletteColor(context: Context, albumId: Long) {
+        val artworkUri = ContentUris.withAppendedId(
+            Uri.parse("content://media/external/audio/albumart"),
+            albumId,
+        )
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val bitmap = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                    val source = ImageDecoder.createSource(context.contentResolver, uri)
-                    ImageDecoder.decodeBitmap(source) { decoder, _, _ -> decoder.setTargetSampleSize(2) }
+                val bitmap = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    // Robust Scoped Storage thumbnail loader for Android 10+
+                    context.contentResolver.loadThumbnail(
+                        artworkUri,
+                        Size(120, 120),
+                        null,
+                    )
                 } else {
                     @Suppress("DEPRECATION")
-                    MediaStore.Images.Media.getBitmap(context.contentResolver, uri)
+                    MediaStore.Images.Media.getBitmap(context.contentResolver, artworkUri)
                 }
 
                 val palette = Palette.from(bitmap).generate()
                 val swatch = palette.dominantSwatch ?: palette.vibrantSwatch ?: palette.darkVibrantSwatch
-                val colorInt = swatch?.rgb ?: android.graphics.Color.parseColor("#1E1E2C")
-                dominantColor.value = Color(colorInt)
+                dominantColor.value = Color(swatch?.rgb ?: android.graphics.Color.parseColor("#1E1E2C"))
             } catch (_: Exception) {
                 dominantColor.value = Color(0xFF1E1E2C)
             }
