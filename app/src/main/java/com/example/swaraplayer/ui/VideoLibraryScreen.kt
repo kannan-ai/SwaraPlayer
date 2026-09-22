@@ -33,7 +33,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
@@ -46,6 +48,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.swaraplayer.data.VideoFile
 import com.example.swaraplayer.player.PlayerViewModel
+import com.example.swaraplayer.ui.components.GesturesHelpDialog
 import com.example.swaraplayer.ui.components.LibraryTopBar
 import com.example.swaraplayer.ui.components.VideoThumbnailImage
 import com.example.swaraplayer.ui.components.formatTime
@@ -65,10 +68,18 @@ fun VideoLibraryScreen(
     val allVideos by viewModel.videosList.collectAsState()
     val foldersList by viewModel.foldersList.collectAsState()
     val selectedFolder by viewModel.selectedFolder.collectAsState()
+    val query by viewModel.searchQuery.collectAsState()
+
+    var showGesturesDialog by remember { mutableStateOf(false) }
+
+    // Filter videos by search query if typing
+    val filteredVideos = remember(allVideos, query) {
+        if (query.isBlank()) allVideos else allVideos.filter { it.title.contains(query, ignoreCase = true) || it.folderName.contains(query, ignoreCase = true) }
+    }
 
     // Map domain models to UI items
-    val recentVideosUI = remember(allVideos) {
-        allVideos.take(8).map { video ->
+    val recentVideosUI = remember(filteredVideos) {
+        filteredVideos.take(8).map { video ->
             VideoItem(
                 id = video.id,
                 title = video.title,
@@ -79,8 +90,9 @@ fun VideoLibraryScreen(
         }
     }
 
-    val folderItemsUI = remember(foldersList) {
-        foldersList.map { folder ->
+    val folderItemsUI = remember(foldersList, query) {
+        val filtered = if (query.isBlank()) foldersList else foldersList.filter { it.name.contains(query, ignoreCase = true) }
+        filtered.map { folder ->
             FolderItem(
                 name = folder.name,
                 videoCount = folder.videoCount,
@@ -92,8 +104,8 @@ fun VideoLibraryScreen(
     }
 
     if (selectedFolder != null) {
-        val folderVideos = remember(selectedFolder, allVideos) {
-            allVideos.filter { it.folderName == selectedFolder!!.name }.map { video ->
+        val folderVideos = remember(selectedFolder, filteredVideos) {
+            filteredVideos.filter { it.folderName == selectedFolder!!.name }.map { video ->
                 VideoItem(
                     id = video.id,
                     title = video.title,
@@ -118,13 +130,13 @@ fun VideoLibraryScreen(
         topBar = {
             LibraryTopBar(
                 title = "Video Library",
+                showBackButton = false,
                 onBack = onNavigateBack,
-                onHome = { viewModel.selectFolder(null) },
+                onHelp = { showGesturesDialog = true },
+                onSearchQueryChange = { q -> viewModel.updateSearchQuery(q) },
+                onSortSelect = { order -> viewModel.updateSortOrder(order) },
                 onSettings = onOpenSettings,
-                onMusic = onOpenMusic,
-                onHelp = {},
-                onSearch = {},
-                onSort = {},
+                onOpenMusic = onOpenMusic,
             )
         },
         containerColor = colors.background,
@@ -201,6 +213,11 @@ fun VideoLibraryScreen(
                 }
             }
         }
+    }
+
+    // Gestures Interactive Help Guide Dialog
+    if (showGesturesDialog) {
+        GesturesHelpDialog(onDismiss = { showGesturesDialog = false })
     }
 }
 

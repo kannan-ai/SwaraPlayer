@@ -50,11 +50,12 @@ fun FolderVideosScreen(
         topBar = {
             LibraryTopBar(
                 title = folderName,
+                showBackButton = true,
                 onBack = onBack,
-                onHome = {},
                 onHelp = {},
-                onSearch = {},
-                onSort = {},
+                onSearchQueryChange = {},
+                onSortSelect = {},
+                onSettings = {},
             )
         },
         containerColor = colors.background,
