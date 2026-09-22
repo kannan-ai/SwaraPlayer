@@ -2,6 +2,7 @@ package com.example.swaraplayer.player
 
 import android.app.Application
 import android.content.ContentUris
+import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -106,6 +107,43 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                 }
                 delay(500)
             }
+        }
+    }
+
+    fun playNextVideo(currentVideo: VideoFile): VideoFile? {
+        val list = if (selectedFolder.value != null) {
+            videosList.value.filter { it.folderName == selectedFolder.value!!.name }
+        } else {
+            videosList.value
+        }
+        if (list.isEmpty()) return null
+        val currentIndex = list.indexOfFirst { it.id == currentVideo.id }
+        val nextIndex = if (currentIndex != -1) (currentIndex + 1) % list.size else 0
+        return list[nextIndex]
+    }
+
+    fun playPrevVideo(currentVideo: VideoFile): VideoFile? {
+        val list = if (selectedFolder.value != null) {
+            videosList.value.filter { it.folderName == selectedFolder.value!!.name }
+        } else {
+            videosList.value
+        }
+        if (list.isEmpty()) return null
+        val currentIndex = list.indexOfFirst { it.id == currentVideo.id }
+        val prevIndex = if (currentIndex != -1) (currentIndex - 1 + list.size) % list.size else 0
+        return list[prevIndex]
+    }
+
+    fun renameMediaFile(context: Context, uri: Uri, newName: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val values = ContentValues().apply {
+                    put(MediaStore.MediaColumns.DISPLAY_NAME, newName)
+                    put(MediaStore.MediaColumns.TITLE, newName)
+                }
+                context.contentResolver.update(uri, values, null, null)
+            } catch (_: Exception) {}
+            scanLocalVideos()
         }
     }
 

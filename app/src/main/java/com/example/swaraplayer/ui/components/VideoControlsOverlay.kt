@@ -45,7 +45,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
@@ -64,6 +63,8 @@ fun VideoControlsOverlay(
     onToggleControls: () -> Unit,
     onToggleSettings: () -> Unit,
     onToggleInfo: () -> Unit,
+    onNextVideo: () -> Unit,
+    onPrevVideo: () -> Unit,
     onBack: () -> Unit,
 ) {
     val isPlaying by viewModel.isPlaying.collectAsState()
@@ -102,7 +103,7 @@ fun VideoControlsOverlay(
                     detectTapGestures(onTap = { onToggleControls() })
                 },
         ) {
-            // Top Bar without Voice Button
+            // Top Bar
             PlayerTopBar(
                 title = title,
                 onBack = onBack,
@@ -114,7 +115,7 @@ fun VideoControlsOverlay(
                 modifier = Modifier.align(Alignment.TopCenter),
             )
 
-            // Bottom Bar with Rotation Lock & Track Seekbar
+            // Bottom Bar with Next/Prev Video Switching
             PlayerBottomBar(
                 currentPositionMs = currentPos,
                 durationMs = totalDuration,
@@ -126,8 +127,8 @@ fun VideoControlsOverlay(
                 onPlayPause = {
                     if (isPlaying) player.pause() else player.play()
                 },
-                onNext = { player.seekTo((player.currentPosition + 10000).coerceAtMost(player.duration)) },
-                onPrev = { player.seekTo((player.currentPosition - 10000).coerceAtLeast(0)) },
+                onNext = onNextVideo,
+                onPrev = onPrevVideo,
                 onToggleLock = { viewModel.isScreenLocked.value = true },
                 onToggleOrientationLock = { viewModel.cycleOrientationMode() },
                 onAspectRatioClick = { viewModel.cycleAspectRatio() },
@@ -297,7 +298,7 @@ fun PlayerBottomBar(
             // Center playback cluster
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onPrev) {
-                    Icon(Icons.Default.SkipPrevious, "Previous", tint = Color.White, modifier = Modifier.size(28.dp))
+                    Icon(Icons.Default.SkipPrevious, "Previous Video", tint = Color.White, modifier = Modifier.size(28.dp))
                 }
                 Box(
                     modifier = Modifier
@@ -315,7 +316,7 @@ fun PlayerBottomBar(
                     )
                 }
                 IconButton(onClick = onNext) {
-                    Icon(Icons.Default.SkipNext, "Next", tint = Color.White, modifier = Modifier.size(28.dp))
+                    Icon(Icons.Default.SkipNext, "Next Video", tint = Color.White, modifier = Modifier.size(28.dp))
                 }
             }
 

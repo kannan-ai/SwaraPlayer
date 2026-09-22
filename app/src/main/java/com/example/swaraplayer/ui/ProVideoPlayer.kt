@@ -102,6 +102,7 @@ import com.example.swaraplayer.player.SuperAudioEnhancer
 import com.example.swaraplayer.player.SuperAudioEqualizer
 import com.example.swaraplayer.ui.components.GesturesHelpDialog
 import com.example.swaraplayer.ui.components.ProgressiveSeekHUD
+import com.example.swaraplayer.ui.components.RenameFileDialog
 import com.example.swaraplayer.ui.components.ScrubbingOverlay
 import com.example.swaraplayer.ui.components.SettingActionItem
 import com.example.swaraplayer.ui.components.SideHUDBar
@@ -128,6 +129,8 @@ fun ProVideoPlayer(
     val context = LocalContext.current
     val activity = context as? Activity
     val scope = rememberCoroutineScope()
+
+    var activeVideoFile by remember(video) { mutableStateOf(video) }
 
     val vibrator = remember { ContextCompat.getSystemService(context, Vibrator::class.java) }
     val audioManager = remember { context.getSystemService(Activity.AUDIO_SERVICE) as AudioManager }
@@ -162,6 +165,7 @@ fun ProVideoPlayer(
     var showSettingsDrawer by remember { mutableStateOf(false) }
     var showSubtitleDrawer by remember { mutableStateOf(false) }
     var showInfoDialog by remember { mutableStateOf(false) }
+    var showRenameDialog by remember { mutableStateOf(false) }
     var showGesturesDialog by remember { mutableStateOf(false) }
     var resumeNoticeMs by remember { mutableLongStateOf(0L) }
 
@@ -279,10 +283,10 @@ fun ProVideoPlayer(
         onDispose {}
     }
 
-    // 3. Orientation Override Control
+    // 3. Orientation Override Control (Respect System Orientation Lock when SENSOR)
     LaunchedEffect(orientationMode) {
         activity?.requestedOrientation = when (orientationMode) {
-            OrientationMode.SENSOR -> ActivityInfo.SCREEN_ORIENTATION_SENSOR
+            OrientationMode.SENSOR -> ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
             OrientationMode.LANDSCAPE -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
             OrientationMode.PORTRAIT -> ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         }
@@ -314,13 +318,13 @@ fun ProVideoPlayer(
     }
 
     // Bind ExoPlayer & Resume Position
-    DisposableEffect(video.uri) {
-        val item = MediaItem.fromUri(video.uri)
+    DisposableEffect(activeVideoFile.uri) {
+        val item = MediaItem.fromUri(activeVideoFile.uri)
         exoPlayer.setMediaItem(item)
         exoPlayer.prepare()
 
         scope.launch {
-            val savedPos = viewModel.getSavedPosition(video.uri.toString())
+            val savedPos = viewModel.getSavedPosition(activeVideoFile.uri.toString())
             if (savedPos > 0) {
                 exoPlayer.seekTo(savedPos)
                 resumeNoticeMs = savedPos
@@ -345,7 +349,7 @@ fun ProVideoPlayer(
         exoPlayer.addListener(listener)
 
         onDispose {
-            viewModel.savePosition(video.uri.toString(), exoPlayer.currentPosition)
+            viewModel.savePosition(activeVideoFile.uri.toString(), exoPlayer.currentPosition)
             audioEnhancer?.release()
             audioEqualizer?.release()
             exoPlayer.removeListener(listener)
@@ -679,15 +683,25 @@ fun ProVideoPlayer(
             }
         }
 
-        // Layer 5: On-Screen Controls Overlay
+        // Layer 5: On-Screen Controls Overlay with Working Next / Prev Video Switching
         VideoControlsOverlay(
-            title = video.title,
+            title = activeVideoFile.title,
             player = exoPlayer,
             viewModel = viewModel,
             isVisible = showControls,
             onToggleControls = { showControls = !showControls },
             onToggleSettings = { showSettingsDrawer = true },
             onToggleInfo = { showInfoDialog = true },
+            onNextVideo = {
+                viewModel.playNextVideo(activeVideoFile)?.let { nextVideo ->
+                    activeVideoFile = nextVideo
+                }
+            },
+            onPrevVideo = {
+                viewModel.playPrevVideo(activeVideoFile)?.let { prevVideo ->
+                    activeVideoFile = prevVideo
+                }
+            },
             onBack = { handleExit() },
         )
 
@@ -712,13 +726,26 @@ fun ProVideoPlayer(
         if (showInfoDialog) {
             VideoMetadataDialog(
                 metadata = VideoMetadata(
-                    title = video.title,
-                    resolution = video.resolution,
-                    sizeFormatted = "${video.sizeBytes / (1024 * 1024)} MB",
-                    durationFormatted = formatTime(video.durationMs),
-                    path = video.path,
+                    title = activeVideoFile.title,
+                    resolution = activeVideoFile.resolution,
+                    sizeFormatted = "${activeVideoFile.sizeBytes / (1024 * 1024)} MB",
+                    durationFormatted = formatTime(activeVideoFile.durationMs),
+                    path = activeVideoFile.path,
                 ),
                 onDismiss = { showInfoDialog = false },
+            )
+        }
+
+        // Rename File Dialog
+        if (showRenameDialog) {
+            RenameFileDialog(
+                currentName = activeVideoFile.title,
+                onRenameConfirm = { newName ->
+                    viewModel.renameMediaFile(context, activeVideoFile.uri, newName)
+                    activeVideoFile = activeVideoFile.copy(title = newName)
+                    showRenameDialog = false
+                },
+                onDismiss = { showRenameDialog = false },
             )
         }
     }
