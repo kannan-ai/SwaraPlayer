@@ -68,6 +68,7 @@ fun VideoLibraryScreen(
     val allVideos by viewModel.videosList.collectAsState()
     val foldersList by viewModel.foldersList.collectAsState()
     val selectedFolder by viewModel.selectedFolder.collectAsState()
+    val isGridView by viewModel.isGridViewMode.collectAsState()
     val query by viewModel.searchQuery.collectAsState()
 
     var showGesturesDialog by remember { mutableStateOf(false) }
@@ -131,6 +132,8 @@ fun VideoLibraryScreen(
         FolderVideosScreen(
             folderName = selectedFolder!!.name,
             videos = folderVideos,
+            isGridView = isGridView,
+            onToggleViewMode = { viewModel.toggleViewMode() },
             onVideoClick = { videoItem ->
                 allVideos.find { it.id == videoItem.id }?.let { onSelectVideo(it) }
             },
@@ -144,6 +147,8 @@ fun VideoLibraryScreen(
             LibraryTopBar(
                 title = "Video Library",
                 showBackButton = false,
+                isGridView = isGridView,
+                onToggleViewMode = { viewModel.toggleViewMode() },
                 onBack = onNavigateBack,
                 onHelp = { showGesturesDialog = true },
                 onSortSelect = { order -> viewModel.updateSortOrder(order) },
@@ -164,7 +169,7 @@ fun VideoLibraryScreen(
                         color = colors.textPrimary,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 12.dp),
+                        modifier = Modifier.padding(start = 16.dp, top = 12.dp, bottom = 10.dp),
                     )
                 }
 
@@ -192,34 +197,45 @@ fun VideoLibraryScreen(
                     color = colors.textPrimary,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.padding(start = 16.dp, top = 24.dp, bottom = 16.dp),
+                    modifier = Modifier.padding(start = 16.dp, top = 20.dp, bottom = 12.dp),
                 )
             }
 
-            // 3-Column Folders Grid
-            item {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 1200.dp),
-                ) {
-                    LazyVerticalGrid(
-                        columns = GridCells.Fixed(3),
-                        userScrollEnabled = false,
+            // Folders Grid or List View
+            if (isGridView) {
+                item {
+                    Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 8.dp),
-                        verticalArrangement = Arrangement.spacedBy(20.dp),
+                            .heightIn(max = 1200.dp),
                     ) {
-                        items(folderItemsUI) { folderItem ->
-                            FolderGridItem(
-                                folder = folderItem,
-                                onClick = {
-                                    foldersList.find { it.name == folderItem.name }?.let { viewModel.selectFolder(it) }
-                                },
-                            )
+                        LazyVerticalGrid(
+                            columns = GridCells.Fixed(3),
+                            userScrollEnabled = false,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 8.dp),
+                            verticalArrangement = Arrangement.spacedBy(20.dp),
+                        ) {
+                            items(folderItemsUI) { folderItem ->
+                                FolderGridItem(
+                                    folder = folderItem,
+                                    onClick = {
+                                        foldersList.find { it.name == folderItem.name }?.let { viewModel.selectFolder(it) }
+                                    },
+                                )
+                            }
                         }
                     }
+                }
+            } else {
+                items(folderItemsUI) { folderItem ->
+                    FolderListItem(
+                        folder = folderItem,
+                        onClick = {
+                            foldersList.find { it.name == folderItem.name }?.let { viewModel.selectFolder(it) }
+                        },
+                    )
                 }
             }
         }
@@ -366,6 +382,76 @@ fun FolderGridItem(folder: FolderItem, onClick: () -> Unit) {
             text = "${folder.videoCount} videos",
             color = colors.textSecondary,
             fontSize = 10.sp,
+        )
+    }
+}
+
+@Composable
+fun FolderListItem(folder: FolderItem, onClick: () -> Unit) {
+    val colors = LocalAppColors.current
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.weight(1f),
+        ) {
+            Box(contentAlignment = Alignment.TopEnd) {
+                Icon(
+                    imageVector = Icons.Default.Folder,
+                    contentDescription = folder.name,
+                    tint = if (folder.isHighlighted) colors.accentOrange else colors.folderIconTint,
+                    modifier = Modifier.size(48.dp),
+                )
+
+                if (folder.newVideoCount > 0) {
+                    Box(
+                        modifier = Modifier
+                            .size(18.dp)
+                            .background(colors.badgeRed, CircleShape)
+                            .border(1.5.dp, Color(0xFF12121D), CircleShape),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = if (folder.newVideoCount > 99) "99+" else folder.newVideoCount.toString(),
+                            color = Color.White,
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            Column {
+                Text(
+                    text = folder.name,
+                    color = if (folder.isHighlighted) colors.accentOrange else colors.textPrimary,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = "${folder.videoCount} videos",
+                    color = colors.textSecondary,
+                    fontSize = 12.sp,
+                )
+            }
+        }
+
+        Icon(
+            Icons.Default.MoreVert,
+            contentDescription = "Options",
+            tint = colors.textSecondary,
+            modifier = Modifier.size(20.dp),
         )
     }
 }

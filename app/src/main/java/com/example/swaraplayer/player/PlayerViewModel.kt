@@ -3,6 +3,7 @@ package com.example.swaraplayer.player
 import android.app.Application
 import android.content.ContentUris
 import android.content.Context
+import android.graphics.ImageDecoder
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
@@ -46,6 +47,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
 
     val searchQuery = MutableStateFlow("")
     val sortOrder = MutableStateFlow(SortOrder.DATE_NEWEST)
+    val isGridViewMode = MutableStateFlow(true)
     val currentEqualizerPreset = MutableStateFlow(AudioPreset.FLAT)
     val appThemeMode = MutableStateFlow(AppThemeMode.OLED)
 
@@ -311,6 +313,10 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
             if (p.isPlaying) p.pause() else p.play()
         }
         isAudioPlaying.value = !isAudioPlaying.value
+    }
+
+    fun toggleViewMode() {
+        isGridViewMode.value = !isGridViewMode.value
     }
 
     fun skipToNextAudioTrack() {

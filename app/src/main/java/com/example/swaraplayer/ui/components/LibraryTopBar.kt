@@ -10,7 +10,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ViewList
 import androidx.compose.material.icons.automirrored.outlined.HelpOutline
+import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -35,6 +37,8 @@ import com.example.swaraplayer.ui.theme.LocalAppColors
 fun LibraryTopBar(
     title: String,
     showBackButton: Boolean = false,
+    isGridView: Boolean = true,
+    onToggleViewMode: () -> Unit,
     onBack: () -> Unit,
     onHelp: () -> Unit,
     onSortSelect: (SortOrder) -> Unit,
@@ -49,7 +53,7 @@ fun LibraryTopBar(
             .background(colors.background)
             .statusBarsPadding()
             .padding(horizontal = 12.dp, vertical = 2.dp)
-            .height(36.dp), // Sleek, ultra-compact top bar height
+            .height(36.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         // Back button shown ONLY if inside a subfolder
@@ -75,6 +79,16 @@ fun LibraryTopBar(
                 .weight(1f)
                 .padding(start = if (showBackButton) 4.dp else 0.dp),
         )
+
+        // View Mode Toggle (Grid / List Switcher)
+        IconButton(onClick = onToggleViewMode, modifier = Modifier.size(30.dp)) {
+            Icon(
+                imageVector = if (isGridView) Icons.AutoMirrored.Filled.ViewList else Icons.Default.GridView,
+                contentDescription = "Toggle Grid/List View",
+                tint = colors.textPrimary,
+                modifier = Modifier.size(18.dp),
+            )
+        }
 
         // Question / Help Icon
         IconButton(onClick = onHelp, modifier = Modifier.size(30.dp)) {
