@@ -12,6 +12,7 @@ import android.util.Rational
 import android.view.WindowManager
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
@@ -122,6 +123,20 @@ class MainActivity : ComponentActivity() {
                         var activeVideo by remember { mutableStateOf<VideoFile?>(null) }
                         var isExpandedMusicPlayerOpen by remember { mutableStateOf(false) }
                         var currentNavTab by remember { mutableStateOf(AppNavTab.LOCAL) }
+
+                        // Intercept phone's hardware back button when non-home tab is active
+                        if (currentNavTab != AppNavTab.LOCAL && activeVideo == null && !isExpandedMusicPlayerOpen) {
+                            BackHandler(enabled = true) {
+                                currentNavTab = AppNavTab.LOCAL
+                            }
+                        }
+
+                        // Intercept phone's hardware back button when expanded music player is open
+                        if (isExpandedMusicPlayerOpen) {
+                            BackHandler(enabled = true) {
+                                isExpandedMusicPlayerOpen = false
+                            }
+                        }
 
                         // Handle External Intent ("Open With" / "Share With" from other apps)
                         LaunchedEffect(intent) {

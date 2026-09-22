@@ -1,5 +1,6 @@
 package com.example.swaraplayer.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -71,6 +72,13 @@ fun VideoLibraryScreen(
 
     var showGesturesDialog by remember { mutableStateOf(false) }
 
+    // Intercept phone's back button when searching
+    if (query.isNotBlank()) {
+        BackHandler(enabled = true) {
+            viewModel.updateSearchQuery("")
+        }
+    }
+
     // Filter videos by search query if typing
     val filteredVideos = remember(allVideos, query) {
         if (query.isBlank()) allVideos else allVideos.filter { it.title.contains(query, ignoreCase = true) || it.folderName.contains(query, ignoreCase = true) }
@@ -102,7 +110,12 @@ fun VideoLibraryScreen(
         }
     }
 
+    // Intercept phone's back button inside sub-folder view
     if (selectedFolder != null) {
+        BackHandler(enabled = true) {
+            viewModel.selectFolder(null)
+        }
+
         val folderVideos = remember(selectedFolder, filteredVideos) {
             filteredVideos.filter { it.folderName == selectedFolder!!.name }.mapIndexed { index, video ->
                 VideoItem(
