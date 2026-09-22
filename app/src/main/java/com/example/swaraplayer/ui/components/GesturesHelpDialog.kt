@@ -15,18 +15,20 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.swaraplayer.ui.theme.LocalAppColors
 
 @Composable
 fun GesturesHelpDialog(onDismiss: () -> Unit) {
+    val colors = LocalAppColors.current
+
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = Color(0xFF1E1E2C),
+        containerColor = colors.surface,
         title = {
-            Text("Touch Gestures Guide", color = Color.White, fontWeight = FontWeight.Bold)
+            Text("Touch Gestures Guide", color = colors.textPrimary, fontWeight = FontWeight.Bold)
         },
         text = {
             Column(
@@ -35,7 +37,7 @@ fun GesturesHelpDialog(onDismiss: () -> Unit) {
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                HorizontalDivider(color = Color.White.copy(alpha = 0.1f))
+                HorizontalDivider(color = colors.textSecondary.copy(alpha = 0.2f))
 
                 GestureRow("Single Tap", "Toggle Controls Overlay")
                 GestureRow("Double Tap (Left)", "Quick Rewind -10s (-20s, -30s...)")
@@ -50,7 +52,7 @@ fun GesturesHelpDialog(onDismiss: () -> Unit) {
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("Got It", color = Color.Cyan, fontWeight = FontWeight.Bold)
+                Text("Got It", color = colors.accentOrange, fontWeight = FontWeight.Bold)
             }
         },
         shape = RoundedCornerShape(16.dp),
@@ -59,12 +61,14 @@ fun GesturesHelpDialog(onDismiss: () -> Unit) {
 
 @Composable
 private fun GestureRow(gesture: String, description: String) {
+    val colors = LocalAppColors.current
+
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(gesture, color = Color.Cyan, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-        Text(description, color = Color.LightGray, fontSize = 11.sp, modifier = Modifier.padding(start = 8.dp))
+        Text(gesture, color = colors.accentOrange, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+        Text(description, color = colors.textSecondary, fontSize = 11.sp, modifier = Modifier.padding(start = 8.dp))
     }
 }
