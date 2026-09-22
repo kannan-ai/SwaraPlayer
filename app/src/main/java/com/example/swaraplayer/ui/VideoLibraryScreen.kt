@@ -105,13 +105,14 @@ fun VideoLibraryScreen(
 
     if (selectedFolder != null) {
         val folderVideos = remember(selectedFolder, filteredVideos) {
-            filteredVideos.filter { it.folderName == selectedFolder!!.name }.map { video ->
+            filteredVideos.filter { it.folderName == selectedFolder!!.name }.mapIndexed { index, video ->
                 VideoItem(
                     id = video.id,
                     title = video.title,
                     durationText = formatTime(video.durationMs),
                     uri = video.uri,
                     thumbnailUri = video.uri.toString(),
+                    isUnopened = index < selectedFolder!!.newVideoCount,
                 )
             }
         }

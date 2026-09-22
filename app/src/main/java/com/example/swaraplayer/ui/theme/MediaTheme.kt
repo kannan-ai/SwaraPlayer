@@ -66,6 +66,7 @@ data class VideoItem(
     val durationText: String,
     val uri: Uri,
     val thumbnailUri: String? = null,
+    val isUnopened: Boolean = false,
 )
 
 data class FolderItem(
