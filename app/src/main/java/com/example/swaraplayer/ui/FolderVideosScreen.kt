@@ -1,5 +1,6 @@
 package com.example.swaraplayer.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -22,6 +23,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -100,22 +102,36 @@ fun VideoGridItem(video: VideoItem, onClick: () -> Unit) {
                 modifier = Modifier.fillMaxSize(),
             )
 
-            // Red "NEW" Badge Pill for Unopened Videos
+            // Capsule "NEW" Badge Pill for Unopened Videos with Dark Outline Border
             if (video.isUnopened) {
-                Box(
+                Surface(
+                    color = colors.badgeRed,
+                    shape = RoundedCornerShape(6.dp),
+                    border = BorderStroke(1.dp, Color.Black.copy(alpha = 0.6f)),
                     modifier = Modifier
                         .align(Alignment.TopStart)
-                        .padding(6.dp)
-                        .background(colors.badgeRed, RoundedCornerShape(4.dp))
-                        .padding(horizontal = 6.dp, vertical = 2.dp),
+                        .padding(6.dp),
                 ) {
                     Text(
-                        text = "NEW",
+                        text = "✨ NEW",
                         color = Color.White,
                         fontSize = 9.sp,
-                        fontWeight = FontWeight.Bold,
+                        fontWeight = FontWeight.ExtraBold,
+                        letterSpacing = 0.5.sp,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                     )
                 }
+            }
+
+            // Bottom Edge Watch Progress Line for partially watched videos
+            if (!video.isUnopened) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .fillMaxWidth(0.35f)
+                        .height(2.5.dp)
+                        .background(colors.accentOrange, RoundedCornerShape(topEnd = 2.dp)),
+                )
             }
 
             // Duration Pill
@@ -123,7 +139,7 @@ fun VideoGridItem(video: VideoItem, onClick: () -> Unit) {
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .padding(4.dp)
-                    .background(colors.background.copy(alpha = 0.8f), RoundedCornerShape(2.dp))
+                    .background(colors.background.copy(alpha = 0.85f), RoundedCornerShape(3.dp))
                     .padding(horizontal = 4.dp, vertical = 1.dp),
             ) {
                 Text(

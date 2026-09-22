@@ -17,7 +17,10 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.annotation.OptIn
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -38,6 +41,8 @@ import com.example.swaraplayer.ui.ExpandedPlayerScreen
 import com.example.swaraplayer.ui.MusicPlayerScreen
 import com.example.swaraplayer.ui.ProVideoPlayer
 import com.example.swaraplayer.ui.VideoLibraryScreen
+import com.example.swaraplayer.ui.components.AppBottomNavigationBar
+import com.example.swaraplayer.ui.components.AppNavTab
 import com.example.swaraplayer.ui.theme.LocalAppColors
 import com.example.swaraplayer.ui.theme.SwaraPlayerTheme
 import com.example.swaraplayer.ui.theme.getThemeColors
@@ -115,9 +120,8 @@ class MainActivity : ComponentActivity() {
                         color = themeColors.background,
                     ) {
                         var activeVideo by remember { mutableStateOf<VideoFile?>(null) }
-                        var isSettingsOpen by remember { mutableStateOf(false) }
-                        var isMusicLibraryOpen by remember { mutableStateOf(false) }
                         var isExpandedMusicPlayerOpen by remember { mutableStateOf(false) }
+                        var currentNavTab by remember { mutableStateOf(AppNavTab.LOCAL) }
 
                         // Handle External Intent ("Open With" / "Share With" from other apps)
                         LaunchedEffect(intent) {
@@ -160,26 +164,48 @@ class MainActivity : ComponentActivity() {
                                 viewModel = viewModel,
                                 onBack = { isExpandedMusicPlayerOpen = false },
                             )
-                        } else if (isMusicLibraryOpen) {
-                            MusicPlayerScreen(
-                                viewModel = viewModel,
-                                onOpenExpandedPlayer = { isExpandedMusicPlayerOpen = true },
-                                onOpenSettings = { isSettingsOpen = true },
-                                onNavigateBack = { isMusicLibraryOpen = false },
-                            )
-                        } else if (isSettingsOpen) {
-                            AppSettingsScreen(
-                                viewModel = viewModel,
-                                onBack = { isSettingsOpen = false },
-                            )
                         } else {
-                            VideoLibraryScreen(
-                                viewModel = viewModel,
-                                onSelectVideo = { video -> activeVideo = video },
-                                onOpenMusic = { isMusicLibraryOpen = true },
-                                onOpenSettings = { isSettingsOpen = true },
-                                onNavigateBack = { finish() },
-                            )
+                            Scaffold(
+                                bottomBar = {
+                                    AppBottomNavigationBar(
+                                        currentTab = currentNavTab,
+                                        onTabSelected = { currentNavTab = it },
+                                    )
+                                },
+                                containerColor = themeColors.background,
+                            ) { innerPadding ->
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(innerPadding),
+                                ) {
+                                    when (currentNavTab) {
+                                        AppNavTab.LOCAL, AppNavTab.HISTORY -> {
+                                            VideoLibraryScreen(
+                                                viewModel = viewModel,
+                                                onSelectVideo = { video -> activeVideo = video },
+                                                onOpenMusic = { currentNavTab = AppNavTab.MUSIC },
+                                                onOpenSettings = { currentNavTab = AppNavTab.SETTINGS },
+                                                onNavigateBack = { finish() },
+                                            )
+                                        }
+                                        AppNavTab.MUSIC -> {
+                                            MusicPlayerScreen(
+                                                viewModel = viewModel,
+                                                onOpenExpandedPlayer = { isExpandedMusicPlayerOpen = true },
+                                                onOpenSettings = { currentNavTab = AppNavTab.SETTINGS },
+                                                onNavigateBack = { currentNavTab = AppNavTab.LOCAL },
+                                            )
+                                        }
+                                        AppNavTab.SETTINGS -> {
+                                            AppSettingsScreen(
+                                                viewModel = viewModel,
+                                                onBack = { currentNavTab = AppNavTab.LOCAL },
+                                            )
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }

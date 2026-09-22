@@ -1,6 +1,7 @@
 package com.example.swaraplayer.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -323,12 +324,13 @@ fun FolderGridItem(folder: FolderItem, onClick: () -> Unit) {
                 modifier = Modifier.size(68.dp),
             )
 
-            // Red Notification Badge showing EXACT number of new unopened files
+            // Red Notification Badge showing EXACT number of new unopened files with high-contrast dark border
             if (folder.newVideoCount > 0) {
                 Box(
                     modifier = Modifier
                         .size(20.dp)
-                        .background(colors.badgeRed, CircleShape),
+                        .background(colors.badgeRed, CircleShape)
+                        .border(1.5.dp, Color(0xFF12121D), CircleShape),
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
