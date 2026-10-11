@@ -276,6 +276,16 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                     audioDuration.value = player.duration.coerceAtLeast(0L)
                 }
             }
+
+            override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+                if (mediaItem != null) {
+                    val tracks = audioList.value
+                    val activeTrack = tracks.find { it.uri.toString() == mediaItem.localConfiguration?.uri?.toString() }
+                    if (activeTrack != null) {
+                        currentAudioTrack.value = activeTrack
+                    }
+                }
+            }
         })
     }
 
@@ -446,7 +456,14 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         isAudioPlaying.value = true
 
         audioPlayerRef?.let { p ->
-            p.setMediaItem(MediaItem.fromUri(track.uri))
+            val tracks = audioList.value
+            if (tracks.isNotEmpty()) {
+                val mediaItems = tracks.map { MediaItem.fromUri(it.uri) }
+                val startIndex = tracks.indexOfFirst { it.id == track.id }.coerceAtLeast(0)
+                p.setMediaItems(mediaItems, startIndex, 0L)
+            } else {
+                p.setMediaItem(MediaItem.fromUri(track.uri))
+            }
             p.prepare()
             p.play()
         }
@@ -503,19 +520,31 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun skipToNextAudioTrack() {
-        val tracks = audioList.value
-        if (tracks.isEmpty()) return
-        val curr = currentAudioTrack.value
-        val nextIndex = if (curr != null) (tracks.indexOf(curr) + 1) % tracks.size else 0
-        playAudioTrack(tracks[nextIndex])
+        audioPlayerRef?.let { p ->
+            if (p.hasNextMediaItem()) {
+                p.seekToNextMediaItem()
+            } else {
+                val tracks = audioList.value
+                if (tracks.isEmpty()) return
+                val curr = currentAudioTrack.value
+                val nextIndex = if (curr != null) (tracks.indexOf(curr) + 1) % tracks.size else 0
+                playAudioTrack(tracks[nextIndex])
+            }
+        }
     }
 
     fun skipToPrevAudioTrack() {
-        val tracks = audioList.value
-        if (tracks.isEmpty()) return
-        val curr = currentAudioTrack.value
-        val prevIndex = if (curr != null) (tracks.indexOf(curr) - 1 + tracks.size) % tracks.size else 0
-        playAudioTrack(tracks[prevIndex])
+        audioPlayerRef?.let { p ->
+            if (p.hasPreviousMediaItem()) {
+                p.seekToPreviousMediaItem()
+            } else {
+                val tracks = audioList.value
+                if (tracks.isEmpty()) return
+                val curr = currentAudioTrack.value
+                val prevIndex = if (curr != null) (tracks.indexOf(curr) - 1 + tracks.size) % tracks.size else 0
+                playAudioTrack(tracks[prevIndex])
+            }
+        }
     }
 
     fun seekAudioTo(positionMs: Long) {
