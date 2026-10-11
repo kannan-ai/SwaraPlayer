@@ -44,6 +44,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     val videosList = MutableStateFlow<List<VideoFile>>(emptyList())
     val foldersList = MutableStateFlow<List<VideoFolder>>(emptyList())
     val selectedFolder = MutableStateFlow<VideoFolder?>(null)
+    val folderStack = MutableStateFlow<List<VideoFolder>>(emptyList())
     val openedVideoUris = MutableStateFlow<Set<String>>(emptySet())
     val recentlyPlayedMap = MutableStateFlow<Map<String, Long>>(emptyMap())
     val isLoading = MutableStateFlow(true)
@@ -519,7 +520,28 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun selectFolder(folder: VideoFolder?) {
-        selectedFolder.value = folder
+        if (folder == null) {
+            folderStack.value = emptyList()
+            selectedFolder.value = null
+        } else {
+            val current = folderStack.value.toMutableList()
+            current.add(folder)
+            folderStack.value = current
+            selectedFolder.value = folder
+        }
+    }
+
+    fun popFolder(): Boolean {
+        val current = folderStack.value.toMutableList()
+        if (current.isNotEmpty()) {
+            current.removeAt(current.lastIndex)
+            folderStack.value = current
+            selectedFolder.value = current.lastOrNull()
+            return true
+        } else {
+            selectedFolder.value = null
+            return false
+        }
     }
 
     fun updateSearchQuery(query: String) {

@@ -119,10 +119,10 @@ fun VideoLibraryScreen(
         }
     }
 
-    // Intercept phone's back button inside sub-folder view
+    // Intercept phone's back button inside nested folder view stack
     if (selectedFolder != null) {
         BackHandler(enabled = true) {
-            viewModel.selectFolder(null)
+            viewModel.popFolder()
         }
 
         val folderVideos = remember(selectedFolder, filteredVideos, openedVideoUris) {
@@ -149,7 +149,7 @@ fun VideoLibraryScreen(
                     onSelectVideo(video)
                 }
             },
-            onBack = { viewModel.selectFolder(null) },
+            onBack = { viewModel.popFolder() },
         )
         return
     }
