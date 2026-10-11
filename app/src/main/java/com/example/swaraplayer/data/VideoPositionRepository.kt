@@ -37,4 +37,21 @@ class VideoPositionRepository(private val context: Context) {
         val prefs = context.videoDataStore.data.first()
         return (prefs[key] ?: 0L) > 0L
     }
+
+    suspend fun recordPlayback(uriStr: String) {
+        val keyTime = longPreferencesKey("time_${uriStr.hashCode()}")
+        val keyOpened = longPreferencesKey("pos_${uriStr.hashCode()}")
+        context.videoDataStore.edit { prefs ->
+            prefs[keyTime] = System.currentTimeMillis()
+            if ((prefs[keyOpened] ?: 0L) == 0L) {
+                prefs[keyOpened] = 1L
+            }
+        }
+    }
+
+    suspend fun getLastPlayedTimestamp(uriStr: String): Long {
+        val keyTime = longPreferencesKey("time_${uriStr.hashCode()}")
+        val prefs = context.videoDataStore.data.first()
+        return prefs[keyTime] ?: 0L
+    }
 }

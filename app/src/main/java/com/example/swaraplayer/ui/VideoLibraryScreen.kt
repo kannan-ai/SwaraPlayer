@@ -69,6 +69,7 @@ fun VideoLibraryScreen(
     val selectedFolder by viewModel.selectedFolder.collectAsState()
     val isGridView by viewModel.isGridViewMode.collectAsState()
     val openedVideoUris by viewModel.openedVideoUris.collectAsState()
+    val recentlyPlayedMap by viewModel.recentlyPlayedMap.collectAsState()
     val query by viewModel.searchQuery.collectAsState()
 
     var showGesturesDialog by remember { mutableStateOf(false) }
@@ -85,17 +86,24 @@ fun VideoLibraryScreen(
         if (query.isBlank()) allVideos else allVideos.filter { it.title.contains(query, ignoreCase = true) || it.folderName.contains(query, ignoreCase = true) }
     }
 
-    // Map domain models to UI items
-    val recentVideosUI = remember(filteredVideos) {
-        filteredVideos.take(8).map { video ->
-            VideoItem(
-                id = video.id,
-                title = video.title,
-                durationText = formatTime(video.durationMs),
-                uri = video.uri,
-                thumbnailUri = video.uri.toString(),
-            )
-        }
+    // Map domain models to UI items for Recently Played (ordered by lastPlayedAt DESC)
+    val recentVideosUI = remember(allVideos, recentlyPlayedMap) {
+        allVideos
+            .mapNotNull { video ->
+                val time = recentlyPlayedMap[video.uri.toString()] ?: 0L
+                if (time > 0L) Pair(video, time) else null
+            }
+            .sortedByDescending { it.second }
+            .take(10)
+            .map { (video, _) ->
+                VideoItem(
+                    id = video.id,
+                    title = video.title,
+                    durationText = formatTime(video.durationMs),
+                    uri = video.uri,
+                    thumbnailUri = video.uri.toString(),
+                )
+            }
     }
 
     val folderItemsUI = remember(foldersList, query) {
@@ -137,7 +145,7 @@ fun VideoLibraryScreen(
             onToggleViewMode = { viewModel.toggleViewMode() },
             onVideoClick = { videoItem ->
                 allVideos.find { it.id == videoItem.id }?.let { video ->
-                    viewModel.markVideoOpened(video.uri.toString())
+                    viewModel.recordVideoPlayback(video.uri.toString())
                     onSelectVideo(video)
                 }
             },
@@ -187,7 +195,7 @@ fun VideoLibraryScreen(
                                 video = videoItem,
                                 onClick = {
                                     allVideos.find { it.id == videoItem.id }?.let { video ->
-                                        viewModel.markVideoOpened(video.uri.toString())
+                                        viewModel.recordVideoPlayback(video.uri.toString())
                                         onSelectVideo(video)
                                     }
                                 },

@@ -45,6 +45,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     val foldersList = MutableStateFlow<List<VideoFolder>>(emptyList())
     val selectedFolder = MutableStateFlow<VideoFolder?>(null)
     val openedVideoUris = MutableStateFlow<Set<String>>(emptySet())
+    val recentlyPlayedMap = MutableStateFlow<Map<String, Long>>(emptyMap())
     val isLoading = MutableStateFlow(true)
 
     val searchQuery = MutableStateFlow("")
@@ -117,6 +118,21 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
             val current = openedVideoUris.value.toMutableSet()
             current.add(uriStr)
             openedVideoUris.value = current
+        }
+    }
+
+    fun recordVideoPlayback(uriStr: String) {
+        viewModelScope.launch {
+            val now = System.currentTimeMillis()
+            positionRepo.recordPlayback(uriStr)
+
+            val currentMap = recentlyPlayedMap.value.toMutableMap()
+            currentMap[uriStr] = now
+            recentlyPlayedMap.value = currentMap
+
+            val currentOpened = openedVideoUris.value.toMutableSet()
+            currentOpened.add(uriStr)
+            openedVideoUris.value = currentOpened
         }
     }
 
@@ -300,12 +316,20 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
             videosList.value = files
 
             val openedSet = mutableSetOf<String>()
+            val recentMap = mutableMapOf<String, Long>()
+
             files.forEach { file ->
-                if (positionRepo.isOpened(file.uri.toString())) {
-                    openedSet.add(file.uri.toString())
+                val uriStr = file.uri.toString()
+                if (positionRepo.isOpened(uriStr)) {
+                    openedSet.add(uriStr)
+                }
+                val lastPlayed = positionRepo.getLastPlayedTimestamp(uriStr)
+                if (lastPlayed > 0L) {
+                    recentMap[uriStr] = lastPlayed
                 }
             }
             openedVideoUris.value = openedSet
+            recentlyPlayedMap.value = recentMap
 
             // Group videos by folder and calculate exact unopened video count
             val folderMap = files.groupBy { it.folderName }
