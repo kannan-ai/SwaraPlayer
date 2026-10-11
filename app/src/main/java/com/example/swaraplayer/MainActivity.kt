@@ -18,6 +18,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.annotation.OptIn
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -53,6 +54,7 @@ import com.example.swaraplayer.ui.AppSettingsScreen
 import com.example.swaraplayer.ui.ExpandedPlayerScreen
 import com.example.swaraplayer.ui.MusicPlayerScreen
 import com.example.swaraplayer.ui.ProVideoPlayer
+import com.example.swaraplayer.ui.SearchScreen
 import com.example.swaraplayer.ui.VideoLibraryScreen
 import com.example.swaraplayer.ui.components.AppBottomNavigationBar
 import com.example.swaraplayer.ui.components.AppNavTab
@@ -124,7 +126,12 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val currentThemeMode by viewModel.appThemeMode.collectAsState()
-            val themeColors = remember(currentThemeMode) { getThemeColors(currentThemeMode) }
+            val isOledEnabled by viewModel.isOledEnabled.collectAsState()
+            val isSystemDark = isSystemInDarkTheme()
+
+            val themeColors = remember(currentThemeMode, isOledEnabled, isSystemDark) {
+                getThemeColors(currentThemeMode, isOledEnabled, isSystemDark)
+            }
             val updateInfo by viewModel.updateInfoState.collectAsState()
 
             CompositionLocalProvider(LocalAppColors provides themeColors) {
@@ -254,11 +261,18 @@ class MainActivity : ComponentActivity() {
                                         .padding(innerPadding),
                                 ) {
                                     when (currentNavTab) {
-                                        AppNavTab.LOCAL, AppNavTab.SEARCH -> {
+                                        AppNavTab.LOCAL -> {
                                             VideoLibraryScreen(
                                                 viewModel = viewModel,
                                                 onSelectVideo = { video -> activeVideo = video },
                                                 onNavigateBack = { finish() },
+                                            )
+                                        }
+                                        AppNavTab.SEARCH -> {
+                                            SearchScreen(
+                                                viewModel = viewModel,
+                                                onSelectVideo = { video -> activeVideo = video },
+                                                onOpenExpandedPlayer = { isExpandedMusicPlayerOpen = true },
                                             )
                                         }
                                         AppNavTab.MUSIC -> {
