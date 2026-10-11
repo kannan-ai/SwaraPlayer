@@ -29,12 +29,15 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Tab
@@ -88,7 +91,14 @@ fun MusicPlayerScreen(
 
     var selectedTab by remember { mutableIntStateOf(0) } // 0: Songs, 1: Artists, 2: Albums, 3: Folders
     var showMoveDialog by remember { mutableStateOf(false) }
+    var isSearching by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
     val tabs = listOf("Songs", "Artists", "Albums", "Folders")
+
+    val filteredAudioTracks = remember(audioTracks, searchQuery) {
+        if (searchQuery.isBlank()) audioTracks
+        else audioTracks.filter { it.title.contains(searchQuery, ignoreCase = true) || it.artist.contains(searchQuery, ignoreCase = true) || it.album.contains(searchQuery, ignoreCase = true) }
+    }
 
     Scaffold(
         topBar = {
@@ -106,41 +116,70 @@ fun MusicPlayerScreen(
                         .height(38.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    IconButton(onClick = onNavigateBack, modifier = Modifier.size(30.dp)) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
-                            tint = colors.textPrimary,
-                            modifier = Modifier.size(18.dp),
+                    if (isSearching) {
+                        OutlinedTextField(
+                            value = searchQuery,
+                            onValueChange = { searchQuery = it },
+                            placeholder = { Text("Search songs, artists...", color = colors.textSecondary, fontSize = 12.sp) },
+                            singleLine = true,
+                            trailingIcon = {
+                                IconButton(
+                                    onClick = {
+                                        isSearching = false
+                                        searchQuery = ""
+                                    },
+                                    modifier = Modifier.size(28.dp),
+                                ) {
+                                    Icon(Icons.Default.Close, contentDescription = "Close", tint = colors.textPrimary, modifier = Modifier.size(16.dp))
+                                }
+                            },
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = colors.accentOrange,
+                                unfocusedBorderColor = colors.textSecondary,
+                                focusedTextColor = colors.textPrimary,
+                                unfocusedTextColor = colors.textPrimary,
+                            ),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(36.dp),
                         )
-                    }
+                    } else {
+                        IconButton(onClick = onNavigateBack, modifier = Modifier.size(30.dp)) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Back",
+                                tint = colors.textPrimary,
+                                modifier = Modifier.size(18.dp),
+                            )
+                        }
 
-                    Text(
-                        text = if (isSelectionMode) "${selectedAudioIds.size} Selected" else "Music Library",
-                        color = colors.textPrimary,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier
-                            .weight(1f)
-                            .padding(start = 8.dp),
-                    )
-
-                    IconButton(onClick = {}, modifier = Modifier.size(30.dp)) {
-                        Icon(
-                            imageVector = Icons.Default.Search,
-                            contentDescription = "Search",
-                            tint = colors.textPrimary,
-                            modifier = Modifier.size(18.dp),
+                        Text(
+                            text = if (isSelectionMode) "${selectedAudioIds.size} Selected" else "Music Library",
+                            color = colors.textPrimary,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(start = 8.dp),
                         )
-                    }
 
-                    IconButton(onClick = {}, modifier = Modifier.size(30.dp)) {
-                        Icon(
-                            imageVector = Icons.Default.FilterList,
-                            contentDescription = "Sort Options",
-                            tint = colors.textPrimary,
-                            modifier = Modifier.size(18.dp),
-                        )
+                        IconButton(onClick = { isSearching = true }, modifier = Modifier.size(30.dp)) {
+                            Icon(
+                                imageVector = Icons.Default.Search,
+                                contentDescription = "Search Music",
+                                tint = colors.accentOrange,
+                                modifier = Modifier.size(18.dp),
+                            )
+                        }
+
+                        IconButton(onClick = {}, modifier = Modifier.size(30.dp)) {
+                            Icon(
+                                imageVector = Icons.Default.FilterList,
+                                contentDescription = "Sort Options",
+                                tint = colors.textPrimary,
+                                modifier = Modifier.size(18.dp),
+                            )
+                        }
                     }
                 }
 
@@ -209,7 +248,7 @@ fun MusicPlayerScreen(
         ) {
             when (selectedTab) {
                 0 -> SongsTabContent(
-                    audioTracks = audioTracks,
+                    audioTracks = filteredAudioTracks,
                     currentTrack = currentTrack,
                     selectedAudioIds = selectedAudioIds,
                     isSelectionMode = isSelectionMode,
@@ -285,7 +324,7 @@ private fun SongsTabContent(
         ) {
             item {
                 Text(
-                    text = "All Songs",
+                    text = "All Songs (${audioTracks.size})",
                     color = colors.textPrimary,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
