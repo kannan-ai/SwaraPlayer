@@ -69,7 +69,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     val duration = MutableStateFlow(0L)
     val playbackSpeed = MutableStateFlow(1.0f)
     val aspectRatioMode = MutableStateFlow(AspectRatioMode.FIT)
-    val orientationMode = MutableStateFlow(OrientationMode.SENSOR)
+    val orientationMode = MutableStateFlow(OrientationMode.LANDSCAPE) // Default video playback in landscape
     val sleepTimerMode = MutableStateFlow(SleepTimerMode.OFF)
     val isNightModeEnabled = MutableStateFlow(false)
     val isHardwareDecoding = MutableStateFlow(true)
@@ -537,9 +537,11 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun cycleOrientationMode() {
-        val modes = OrientationMode.entries.toTypedArray()
-        val nextIdx = (orientationMode.value.ordinal + 1) % modes.size
-        orientationMode.value = modes[nextIdx]
+        orientationMode.value = if (orientationMode.value == OrientationMode.LANDSCAPE) {
+            OrientationMode.PORTRAIT
+        } else {
+            OrientationMode.LANDSCAPE
+        }
     }
 
     fun cycleSleepTimer() {
