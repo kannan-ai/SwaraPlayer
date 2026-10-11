@@ -160,14 +160,18 @@ fun ProVideoPlayer(
     }
 
     val playNext = {
-        if (activePlaylist.isNotEmpty()) {
-            currentIndex = (currentIndex + 1) % activePlaylist.size
+        if (currentIndex < activePlaylist.lastIndex) {
+            currentIndex += 1
+        } else {
+            Toast.makeText(context, "No next video", Toast.LENGTH_SHORT).show()
         }
     }
 
     val playPrev = {
-        if (activePlaylist.isNotEmpty()) {
-            currentIndex = (currentIndex - 1 + activePlaylist.size) % activePlaylist.size
+        if (currentIndex > 0) {
+            currentIndex -= 1
+        } else {
+            Toast.makeText(context, "No previous video", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -369,7 +373,7 @@ fun ProVideoPlayer(
         exoPlayer.prepare()
 
         scope.launch {
-            viewModel.recordVideoPlayback(activeVideoFile.uri.toString())
+            viewModel.markVideoOpened(activeVideoFile.uri.toString())
             val savedPos = viewModel.getSavedPosition(activeVideoFile.uri.toString())
             if (savedPos > 0) {
                 exoPlayer.seekTo(savedPos)
@@ -385,10 +389,11 @@ fun ProVideoPlayer(
 
             override fun onPlaybackStateChanged(playbackState: Int) {
                 if (playbackState == Player.STATE_ENDED) {
-                    // Auto-Play: Automatically move to next video in directory playlist when video ends
-                    if (activePlaylist.size > 1) {
-                        playNext()
+                    // Auto-Play: Check if there's a next video in folder before advancing
+                    if (currentIndex < activePlaylist.lastIndex) {
+                        currentIndex += 1
                     } else {
+                        Toast.makeText(context, "No next video", Toast.LENGTH_SHORT).show()
                         handleExit()
                     }
                 }
