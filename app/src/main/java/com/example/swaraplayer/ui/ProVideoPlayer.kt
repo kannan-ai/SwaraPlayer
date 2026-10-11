@@ -64,6 +64,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -130,7 +131,45 @@ fun ProVideoPlayer(
     val activity = context as? Activity
     val scope = rememberCoroutineScope()
 
-    var activeVideoFile by remember(video) { mutableStateOf(video) }
+    val videosList by viewModel.videosList.collectAsState()
+    val selectedFolder by viewModel.selectedFolder.collectAsState()
+
+    // Active Directory Playlist & Playlist Index Management
+    val activePlaylist = remember(video, videosList, selectedFolder) {
+        val folder = selectedFolder
+        if (folder != null) {
+            val list = videosList.filter { it.folderName == folder.name }
+            if (list.isNotEmpty()) list else listOf(video)
+        } else {
+            if (videosList.isNotEmpty()) videosList else listOf(video)
+        }
+    }
+
+    var currentIndex by remember(video, activePlaylist) {
+        val idx = activePlaylist.indexOfFirst { it.id == video.id }
+        mutableIntStateOf(if (idx >= 0) idx else 0)
+    }
+
+    var activeVideoFile by remember(currentIndex, activePlaylist, video) {
+        val item = if (activePlaylist.isNotEmpty() && currentIndex in activePlaylist.indices) {
+            activePlaylist[currentIndex]
+        } else {
+            video
+        }
+        mutableStateOf(item)
+    }
+
+    val playNext = {
+        if (activePlaylist.isNotEmpty()) {
+            currentIndex = (currentIndex + 1) % activePlaylist.size
+        }
+    }
+
+    val playPrev = {
+        if (activePlaylist.isNotEmpty()) {
+            currentIndex = (currentIndex - 1 + activePlaylist.size) % activePlaylist.size
+        }
+    }
 
     val vibrator = remember { ContextCompat.getSystemService(context, Vibrator::class.java) }
     val audioManager = remember { context.getSystemService(Activity.AUDIO_SERVICE) as AudioManager }
@@ -285,7 +324,7 @@ fun ProVideoPlayer(
         onDispose {}
     }
 
-    // 3. Orientation Override Control with Automatic Reset on Player Exit
+    // 3. Orientation Override Control (Respect System Orientation Lock when SENSOR)
     DisposableEffect(orientationMode) {
         activity?.requestedOrientation = when (orientationMode) {
             OrientationMode.SENSOR -> ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
@@ -323,14 +362,14 @@ fun ProVideoPlayer(
         }
     }
 
-    // Bind ExoPlayer & Resume Position
+    // Bind ExoPlayer & Resume Position for Current Active Video
     DisposableEffect(activeVideoFile.uri) {
         val item = MediaItem.fromUri(activeVideoFile.uri)
         exoPlayer.setMediaItem(item)
         exoPlayer.prepare()
 
         scope.launch {
-            viewModel.markVideoOpened(activeVideoFile.uri.toString())
+            viewModel.recordVideoPlayback(activeVideoFile.uri.toString())
             val savedPos = viewModel.getSavedPosition(activeVideoFile.uri.toString())
             if (savedPos > 0) {
                 exoPlayer.seekTo(savedPos)
@@ -346,10 +385,9 @@ fun ProVideoPlayer(
 
             override fun onPlaybackStateChanged(playbackState: Int) {
                 if (playbackState == Player.STATE_ENDED) {
-                    // Auto-Play: Automatically move to next video in folder when current video ends
-                    val nextVideo = viewModel.playNextVideo(activeVideoFile)
-                    if (nextVideo != null && nextVideo.id != activeVideoFile.id) {
-                        activeVideoFile = nextVideo
+                    // Auto-Play: Automatically move to next video in directory playlist when video ends
+                    if (activePlaylist.size > 1) {
+                        playNext()
                     } else {
                         handleExit()
                     }
@@ -702,7 +740,7 @@ fun ProVideoPlayer(
             }
         }
 
-        // Layer 5: On-Screen Controls Overlay with Working Next / Prev Video Switching
+        // Layer 5: On-Screen Controls Overlay with Directory Playlist Index Switching
         VideoControlsOverlay(
             title = activeVideoFile.title,
             player = exoPlayer,
@@ -711,16 +749,8 @@ fun ProVideoPlayer(
             onToggleControls = { showControls = !showControls },
             onToggleSettings = { showSettingsDrawer = true },
             onToggleInfo = { showInfoDialog = true },
-            onNextVideo = {
-                viewModel.playNextVideo(activeVideoFile)?.let { nextVideo ->
-                    activeVideoFile = nextVideo
-                }
-            },
-            onPrevVideo = {
-                viewModel.playPrevVideo(activeVideoFile)?.let { prevVideo ->
-                    activeVideoFile = prevVideo
-                }
-            },
+            onNextVideo = { playNext() },
+            onPrevVideo = { playPrev() },
             onBack = { handleExit() },
         )
 
