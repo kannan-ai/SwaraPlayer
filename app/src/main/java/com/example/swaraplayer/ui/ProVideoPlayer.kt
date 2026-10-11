@@ -151,6 +151,8 @@ fun ProVideoPlayer(
     val handleExit = {
         exoPlayer.stop()
         exoPlayer.clearMediaItems()
+        activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+        viewModel.orientationMode.value = OrientationMode.SENSOR
         onBack()
     }
 
@@ -283,12 +285,16 @@ fun ProVideoPlayer(
         onDispose {}
     }
 
-    // 3. Orientation Override Control (Respect System Orientation Lock when SENSOR)
-    LaunchedEffect(orientationMode) {
+    // 3. Orientation Override Control with Automatic Reset on Player Exit
+    DisposableEffect(orientationMode) {
         activity?.requestedOrientation = when (orientationMode) {
             OrientationMode.SENSOR -> ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
             OrientationMode.LANDSCAPE -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
             OrientationMode.PORTRAIT -> ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        }
+        onDispose {
+            activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+            viewModel.orientationMode.value = OrientationMode.SENSOR
         }
     }
 
@@ -324,6 +330,7 @@ fun ProVideoPlayer(
         exoPlayer.prepare()
 
         scope.launch {
+            viewModel.markVideoOpened(activeVideoFile.uri.toString())
             val savedPos = viewModel.getSavedPosition(activeVideoFile.uri.toString())
             if (savedPos > 0) {
                 exoPlayer.seekTo(savedPos)
