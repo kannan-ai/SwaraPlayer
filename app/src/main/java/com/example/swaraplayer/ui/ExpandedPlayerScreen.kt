@@ -1,5 +1,8 @@
 package com.example.swaraplayer.ui
 
+import android.content.Intent
+import android.provider.Settings
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -22,6 +25,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.Equalizer
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -57,6 +61,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -75,6 +80,7 @@ fun ExpandedPlayerScreen(
     viewModel: PlayerViewModel,
     onBack: () -> Unit,
 ) {
+    val context = LocalContext.current
     val colors = LocalAppColors.current
     val currentTrack by viewModel.currentAudioTrack.collectAsState()
     val isPlaying by viewModel.isAudioPlaying.collectAsState()
@@ -83,12 +89,14 @@ fun ExpandedPlayerScreen(
     val dominantColor by viewModel.dominantColor.collectAsState()
     val sleepTimer by viewModel.sleepTimerMode.collectAsState()
     val currentEqPreset by viewModel.currentEqualizerPreset.collectAsState()
+    val favoriteTrackIds by viewModel.favoriteTrackIds.collectAsState()
 
     var showXRayDialog by remember { mutableStateOf(false) }
     var showEqDialog by remember { mutableStateOf(false) }
 
     val track = currentTrack ?: return
     val metadata = remember(track) { PlayerViewModel.sanitizeTrackMetadata(track) }
+    val isFav = favoriteTrackIds.contains(track.id)
 
     Box(
         modifier = Modifier
@@ -118,7 +126,17 @@ fun ExpandedPlayerScreen(
                         )
                     }
 
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.clickable {
+                            try {
+                                val intent = Intent(Settings.ACTION_SOUND_SETTINGS)
+                                context.startActivity(intent)
+                            } catch (_: Exception) {
+                                Toast.makeText(context, "Audio Output: Phone Speaker", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                    ) {
                         Text(
                             text = "NOW PLAYING",
                             color = Color.LightGray,
@@ -159,9 +177,25 @@ fun ExpandedPlayerScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
-                        Icon(Icons.Default.FavoriteBorder, contentDescription = "Favorite", tint = Color.LightGray)
+                        IconButton(onClick = { viewModel.toggleFavoriteTrack(track.id) }) {
+                            Icon(
+                                imageVector = if (isFav) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                contentDescription = "Favorite",
+                                tint = if (isFav) colors.badgeRed else Color.LightGray,
+                            )
+                        }
 
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.clickable {
+                                try {
+                                    val intent = Intent(Settings.ACTION_SOUND_SETTINGS)
+                                    context.startActivity(intent)
+                                } catch (_: Exception) {
+                                    Toast.makeText(context, "Audio Output: Phone Speaker", Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                        ) {
                             Icon(Icons.Default.SpeakerGroup, contentDescription = null, tint = colors.accentOrange, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(6.dp))
                             Text("Phone Speaker", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
@@ -222,7 +256,10 @@ fun ExpandedPlayerScreen(
                     Surface(
                         color = Color(0xFF2E2E38),
                         shape = RoundedCornerShape(20.dp),
-                        modifier = Modifier.clickable { viewModel.cycleSleepTimer() },
+                        modifier = Modifier.clickable {
+                            viewModel.cycleSleepTimer()
+                            Toast.makeText(context, "Sleep Timer: ${viewModel.sleepTimerMode.value.label}", Toast.LENGTH_SHORT).show()
+                        },
                     ) {
                         Row(
                             modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),

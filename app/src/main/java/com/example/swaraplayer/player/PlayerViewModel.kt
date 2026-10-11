@@ -55,6 +55,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     val currentEqualizerPreset = MutableStateFlow(AudioPreset.FLAT)
     val appThemeMode = MutableStateFlow(AppThemeMode.SYSTEM)
     val isOledEnabled = MutableStateFlow(true)
+    val favoriteTrackIds = MutableStateFlow<Set<Long>>(emptySet())
 
     val updateInfoState = MutableStateFlow<UpdateInfo?>(null)
     val isCheckingUpdate = MutableStateFlow(false)
@@ -112,6 +113,16 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                 delay(500)
             }
         }
+    }
+
+    fun toggleFavoriteTrack(trackId: Long) {
+        val current = favoriteTrackIds.value.toMutableSet()
+        if (current.contains(trackId)) {
+            current.remove(trackId)
+        } else {
+            current.add(trackId)
+        }
+        favoriteTrackIds.value = current
     }
 
     fun markVideoOpened(uriStr: String) {
