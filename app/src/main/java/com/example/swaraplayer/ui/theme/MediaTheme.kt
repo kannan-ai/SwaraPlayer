@@ -17,7 +17,7 @@ data class AppThemeColors(
 val LightThemeColors = AppThemeColors(
     background = Color(0xFFF2F2F7),
     surface = Color(0xFFFFFFFF),
-    folderIconTint = Color(0xFF8E8E93),
+    folderIconTint = Color(0xFFE57A22), // Consistent vibrant Orange across ALL themes!
     textPrimary = Color(0xFF000000),
     textSecondary = Color(0xFF6C6C70),
     accentOrange = Color(0xFFE57A22),
@@ -27,7 +27,7 @@ val LightThemeColors = AppThemeColors(
 val DarkThemeColors = AppThemeColors(
     background = Color(0xFF1C1C1E),
     surface = Color(0xFF2C2C2E),
-    folderIconTint = Color(0xFF636366),
+    folderIconTint = Color(0xFFE57A22), // Consistent vibrant Orange across ALL themes!
     textPrimary = Color(0xFFFFFFFF),
     textSecondary = Color(0xFF8E8E93),
     accentOrange = Color(0xFFE57A22),
@@ -55,7 +55,7 @@ fun getThemeColors(mode: AppThemeMode, isOledEnabled: Boolean = true, isSystemDa
         AppThemeColors(
             background = Color(0xFF000000), // Pure OLED pitch black
             surface = Color(0xFF000000),    // Pure OLED pitch black
-            folderIconTint = Color(0xFF4A4A4A),
+            folderIconTint = Color(0xFFE57A22), // Consistent vibrant Orange across ALL themes!
             textPrimary = Color(0xFFFFFFFF),
             textSecondary = Color(0xFF8E8E93),
             accentOrange = Color(0xFFE57A22),

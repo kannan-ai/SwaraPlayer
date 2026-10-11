@@ -114,7 +114,7 @@ fun VideoLibraryScreen(
                 videoCount = folder.videoCount,
                 newVideoCount = folder.newVideoCount,
                 previewVideoUri = folder.previewVideoUri,
-                isHighlighted = folder.name.contains("series", ignoreCase = true) || folder.name.contains("Download", ignoreCase = true),
+                isHighlighted = false,
             )
         }
     }
@@ -353,11 +353,11 @@ fun FolderGridItem(folder: FolderItem, onClick: () -> Unit) {
             .clickable(onClick = onClick),
     ) {
         Box(contentAlignment = Alignment.TopEnd) {
-            // Clean Folder Silhouette Icon (without thumbnail overlay)
+            // Clean Vibrant Folder Silhouette Icon
             Icon(
                 imageVector = Icons.Default.Folder,
                 contentDescription = folder.name,
-                tint = if (folder.isHighlighted) colors.accentOrange else colors.folderIconTint,
+                tint = colors.folderIconTint,
                 modifier = Modifier.size(68.dp),
             )
 
@@ -384,7 +384,7 @@ fun FolderGridItem(folder: FolderItem, onClick: () -> Unit) {
 
         Text(
             text = folder.name,
-            color = if (folder.isHighlighted) colors.accentOrange else colors.textPrimary,
+            color = colors.textPrimary,
             fontSize = 12.sp,
             fontWeight = FontWeight.Medium,
             maxLines = 1,
@@ -419,7 +419,7 @@ fun FolderListItem(folder: FolderItem, onClick: () -> Unit) {
                 Icon(
                     imageVector = Icons.Default.Folder,
                     contentDescription = folder.name,
-                    tint = if (folder.isHighlighted) colors.accentOrange else colors.folderIconTint,
+                    tint = colors.folderIconTint,
                     modifier = Modifier.size(48.dp),
                 )
 
@@ -446,7 +446,7 @@ fun FolderListItem(folder: FolderItem, onClick: () -> Unit) {
             Column {
                 Text(
                     text = folder.name,
-                    color = if (folder.isHighlighted) colors.accentOrange else colors.textPrimary,
+                    color = colors.textPrimary,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
