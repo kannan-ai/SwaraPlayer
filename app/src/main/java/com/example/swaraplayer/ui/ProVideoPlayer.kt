@@ -150,13 +150,10 @@ fun ProVideoPlayer(
         mutableIntStateOf(if (idx >= 0) idx else 0)
     }
 
-    var activeVideoFile by remember(currentIndex, activePlaylist, video) {
-        val item = if (activePlaylist.isNotEmpty() && currentIndex in activePlaylist.indices) {
-            activePlaylist[currentIndex]
-        } else {
-            video
-        }
-        mutableStateOf(item)
+    val activeVideoFile = if (activePlaylist.isNotEmpty() && currentIndex in activePlaylist.indices) {
+        activePlaylist[currentIndex]
+    } else {
+        video
     }
 
     val playNext = {
@@ -306,15 +303,18 @@ fun ProVideoPlayer(
         audioEqualizer?.applyPreset(eqPreset)
     }
 
-    // 1. Keep Screen On Flag
+    // Overall Composable Lifetime Cleanup (releases ExoPlayer ONLY on full screen exit)
     DisposableEffect(Unit) {
         activity?.window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         onDispose {
             activity?.window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            audioEnhancer?.release()
+            audioEqualizer?.release()
+            exoPlayer.release()
         }
     }
 
-    // 2. System UI Immersive Mode (Hide System Bars with Transient Swipe)
+    // System UI Immersive Mode (Hide System Bars with Transient Swipe)
     DisposableEffect(showControls) {
         activity?.window?.let { window ->
             val controller = WindowCompat.getInsetsController(window, window.decorView)
@@ -328,7 +328,7 @@ fun ProVideoPlayer(
         onDispose {}
     }
 
-    // 3. Orientation Override Control (Respect System Orientation Lock when SENSOR)
+    // Orientation Override Control (Respect System Orientation Lock when SENSOR)
     DisposableEffect(orientationMode) {
         activity?.requestedOrientation = when (orientationMode) {
             OrientationMode.SENSOR -> ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
@@ -341,7 +341,7 @@ fun ProVideoPlayer(
         }
     }
 
-    // 4. Headphones Disconnect Receiver ("Becoming Noisy")
+    // Headphones Disconnect Receiver ("Becoming Noisy")
     DisposableEffect(Unit) {
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context?, intent: Intent?) {
@@ -366,18 +366,22 @@ fun ProVideoPlayer(
         }
     }
 
-    // Bind ExoPlayer & Resume Position for Current Active Video
+    // Bind ExoPlayer & Resume Position for Current Active Video (without releasing ExoPlayer)
     DisposableEffect(activeVideoFile.uri) {
         val item = MediaItem.fromUri(activeVideoFile.uri)
+        exoPlayer.stop()
+        exoPlayer.clearMediaItems()
         exoPlayer.setMediaItem(item)
         exoPlayer.prepare()
 
         scope.launch {
-            viewModel.markVideoOpened(activeVideoFile.uri.toString())
+            viewModel.recordVideoPlayback(activeVideoFile.uri.toString())
             val savedPos = viewModel.getSavedPosition(activeVideoFile.uri.toString())
             if (savedPos > 0) {
                 exoPlayer.seekTo(savedPos)
                 resumeNoticeMs = savedPos
+            } else {
+                resumeNoticeMs = 0L
             }
             exoPlayer.playWhenReady = true
         }
@@ -412,10 +416,7 @@ fun ProVideoPlayer(
 
         onDispose {
             viewModel.savePosition(activeVideoFile.uri.toString(), exoPlayer.currentPosition)
-            audioEnhancer?.release()
-            audioEqualizer?.release()
             exoPlayer.removeListener(listener)
-            exoPlayer.release()
         }
     }
 
@@ -796,7 +797,6 @@ fun ProVideoPlayer(
                 currentName = activeVideoFile.title,
                 onRenameConfirm = { newName ->
                     viewModel.renameMediaFile(context, activeVideoFile.uri, newName)
-                    activeVideoFile = activeVideoFile.copy(title = newName)
                     showRenameDialog = false
                 },
                 onDismiss = { showRenameDialog = false },
