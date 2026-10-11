@@ -157,8 +157,10 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         }
         if (list.isEmpty()) return null
         val currentIndex = list.indexOfFirst { it.id == currentVideo.id }
-        val nextIndex = if (currentIndex != -1) (currentIndex + 1) % list.size else 0
-        return list[nextIndex]
+        if (currentIndex != -1 && currentIndex < list.lastIndex) {
+            return list[currentIndex + 1]
+        }
+        return null
     }
 
     fun playPrevVideo(currentVideo: VideoFile): VideoFile? {
@@ -169,8 +171,10 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         }
         if (list.isEmpty()) return null
         val currentIndex = list.indexOfFirst { it.id == currentVideo.id }
-        val prevIndex = if (currentIndex != -1) (currentIndex - 1 + list.size) % list.size else 0
-        return list[prevIndex]
+        if (currentIndex > 0) {
+            return list[currentIndex - 1]
+        }
+        return null
     }
 
     fun renameMediaFile(context: Context, uri: Uri, newName: String) {
@@ -439,7 +443,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
 
             albums.value = audioFiles.groupBy { it.album }.map { (albumTitle, tracks) ->
                 val first = tracks.first()
-                Album(id = first.id, title = albumTitle, artist = first.artist, albumArtUri = first.albumArtUri, trackCount = tracks.size, tracks = tracks)
+                Album(id = first.albumId, title = albumTitle, artist = first.artist, albumArtUri = first.albumArtUri, trackCount = tracks.size, tracks = tracks)
             }
 
             if (currentAudioTrack.value == null && audioFiles.isNotEmpty()) {
