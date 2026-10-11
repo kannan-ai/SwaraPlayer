@@ -475,9 +475,16 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
 
     fun toggleAudioPlayPause() {
         audioPlayerRef?.let { p ->
-            if (p.isPlaying) p.pause() else p.play()
+            if (p.isPlaying) {
+                p.pause()
+                isAudioPlaying.value = false
+            } else {
+                p.play()
+                isAudioPlaying.value = true
+            }
+        } ?: run {
+            isAudioPlaying.value = !isAudioPlaying.value
         }
-        isAudioPlaying.value = !isAudioPlaying.value
     }
 
     fun toggleViewMode() {
