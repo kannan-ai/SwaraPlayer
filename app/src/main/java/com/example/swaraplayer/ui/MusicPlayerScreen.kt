@@ -1,6 +1,7 @@
 package com.example.swaraplayer.ui
 
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -40,6 +41,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRowDefaults
 import androidx.compose.material3.Text
@@ -55,6 +57,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -90,6 +93,8 @@ fun MusicPlayerScreen(
     val isSelectionMode by viewModel.isSelectionMode.collectAsState()
 
     var selectedTab by remember { mutableIntStateOf(0) } // 0: Songs, 1: Artists, 2: Albums, 3: Folders
+    var selectedAlbum by remember { mutableStateOf<Album?>(null) }
+    var selectedArtist by remember { mutableStateOf<Artist?>(null) }
     var showMoveDialog by remember { mutableStateOf(false) }
     var isSearching by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
@@ -98,6 +103,48 @@ fun MusicPlayerScreen(
     val filteredAudioTracks = remember(audioTracks, searchQuery) {
         if (searchQuery.isBlank()) audioTracks
         else audioTracks.filter { it.title.contains(searchQuery, ignoreCase = true) || it.artist.contains(searchQuery, ignoreCase = true) || it.album.contains(searchQuery, ignoreCase = true) }
+    }
+
+    // Detail View: Album Tracks
+    if (selectedAlbum != null) {
+        BackHandler(enabled = true) {
+            selectedAlbum = null
+        }
+
+        AlbumDetailScreen(
+            album = selectedAlbum!!,
+            currentTrack = currentTrack,
+            selectedAudioIds = selectedAudioIds,
+            isSelectionMode = isSelectionMode,
+            onToggleSelect = { id -> viewModel.toggleAudioSelection(id) },
+            onTrackClick = { track ->
+                viewModel.playAudioTrack(track, context)
+                onOpenExpandedPlayer()
+            },
+            onBack = { selectedAlbum = null },
+        )
+        return
+    }
+
+    // Detail View: Artist Songs
+    if (selectedArtist != null) {
+        BackHandler(enabled = true) {
+            selectedArtist = null
+        }
+
+        ArtistDetailScreen(
+            artist = selectedArtist!!,
+            currentTrack = currentTrack,
+            selectedAudioIds = selectedAudioIds,
+            isSelectionMode = isSelectionMode,
+            onToggleSelect = { id -> viewModel.toggleAudioSelection(id) },
+            onTrackClick = { track ->
+                viewModel.playAudioTrack(track, context)
+                onOpenExpandedPlayer()
+            },
+            onBack = { selectedArtist = null },
+        )
+        return
     }
 
     Scaffold(
@@ -260,30 +307,15 @@ fun MusicPlayerScreen(
                 )
                 1 -> ArtistsTabContent(
                     artists = artistsList,
-                    onArtistClick = { artist ->
-                        artist.tracks.firstOrNull()?.let { track ->
-                            viewModel.playAudioTrack(track, context)
-                            onOpenExpandedPlayer()
-                        }
-                    },
+                    onArtistClick = { artist -> selectedArtist = artist },
                 )
                 2 -> AlbumsTabContent(
                     albums = albumsList,
-                    onAlbumClick = { album ->
-                        album.tracks.firstOrNull()?.let { track ->
-                            viewModel.playAudioTrack(track, context)
-                            onOpenExpandedPlayer()
-                        }
-                    },
+                    onAlbumClick = { album -> selectedAlbum = album },
                 )
                 3 -> FoldersTabContent(
                     folders = listOf("Music"),
-                    onFolderClick = {
-                        audioTracks.firstOrNull()?.let { track ->
-                            viewModel.playAudioTrack(track, context)
-                            onOpenExpandedPlayer()
-                        }
-                    },
+                    onFolderClick = {},
                 )
             }
         }
@@ -299,6 +331,194 @@ fun MusicPlayerScreen(
             },
             onDismiss = { showMoveDialog = false },
         )
+    }
+}
+
+@Composable
+private fun AlbumDetailScreen(
+    album: Album,
+    currentTrack: MediaFile?,
+    selectedAudioIds: Set<Long>,
+    isSelectionMode: Boolean,
+    onToggleSelect: (Long) -> Unit,
+    onTrackClick: (MediaFile) -> Unit,
+    onBack: () -> Unit,
+) {
+    val colors = LocalAppColors.current
+
+    Scaffold(
+        topBar = {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(colors.background)
+                    .statusBarsPadding()
+                    .padding(horizontal = 8.dp, vertical = 6.dp)
+                    .height(40.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                IconButton(onClick = onBack, modifier = Modifier.size(32.dp)) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Back",
+                        tint = colors.textPrimary,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+                Text(
+                    text = album.title,
+                    color = colors.textPrimary,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(start = 8.dp),
+                )
+            }
+        },
+        containerColor = colors.background,
+    ) { innerPadding ->
+        LazyColumn(
+            contentPadding = PaddingValues(bottom = 80.dp),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding),
+        ) {
+            // Album Artwork Header
+            item {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(96.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(colors.surface),
+                    ) {
+                        AudioThumbnailImage(
+                            albumId = album.id,
+                            audioUri = album.tracks.firstOrNull()?.uri,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(16.dp))
+
+                    Column {
+                        Text(
+                            text = album.title,
+                            color = colors.textPrimary,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = album.artist,
+                            color = colors.accentOrange,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "${album.tracks.size} Songs",
+                            color = colors.textSecondary,
+                            fontSize = 12.sp,
+                        )
+                    }
+                }
+            }
+
+            items(album.tracks) { track ->
+                AudioTrackListItem(
+                    track = track,
+                    isPlayingTrack = currentTrack?.id == track.id,
+                    isSelected = selectedAudioIds.contains(track.id),
+                    isSelectionMode = isSelectionMode,
+                    onToggleSelect = onToggleSelect,
+                    onClick = { onTrackClick(track) },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ArtistDetailScreen(
+    artist: Artist,
+    currentTrack: MediaFile?,
+    selectedAudioIds: Set<Long>,
+    isSelectionMode: Boolean,
+    onToggleSelect: (Long) -> Unit,
+    onTrackClick: (MediaFile) -> Unit,
+    onBack: () -> Unit,
+) {
+    val colors = LocalAppColors.current
+
+    Scaffold(
+        topBar = {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(colors.background)
+                    .statusBarsPadding()
+                    .padding(horizontal = 8.dp, vertical = 6.dp)
+                    .height(40.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                IconButton(onClick = onBack, modifier = Modifier.size(32.dp)) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Back",
+                        tint = colors.textPrimary,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+                Text(
+                    text = artist.name,
+                    color = colors.textPrimary,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(start = 8.dp),
+                )
+            }
+        },
+        containerColor = colors.background,
+    ) { innerPadding ->
+        LazyColumn(
+            contentPadding = PaddingValues(bottom = 80.dp),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding),
+        ) {
+            item {
+                Text(
+                    text = "Songs by ${artist.name} (${artist.tracks.size})",
+                    color = colors.accentOrange,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 12.dp),
+                )
+            }
+
+            items(artist.tracks) { track ->
+                AudioTrackListItem(
+                    track = track,
+                    isPlayingTrack = currentTrack?.id == track.id,
+                    isSelected = selectedAudioIds.contains(track.id),
+                    isSelectionMode = isSelectionMode,
+                    onToggleSelect = onToggleSelect,
+                    onClick = { onTrackClick(track) },
+                )
+            }
+        }
     }
 }
 
