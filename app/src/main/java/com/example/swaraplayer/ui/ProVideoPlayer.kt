@@ -337,6 +337,18 @@ fun ProVideoPlayer(
                 viewModel.isPlaying.value = isPlaying
             }
 
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                if (playbackState == Player.STATE_ENDED) {
+                    // Auto-Play: Automatically move to next video in folder when current video ends
+                    val nextVideo = viewModel.playNextVideo(activeVideoFile)
+                    if (nextVideo != null && nextVideo.id != activeVideoFile.id) {
+                        activeVideoFile = nextVideo
+                    } else {
+                        handleExit()
+                    }
+                }
+            }
+
             override fun onAudioSessionIdChanged(audioSessionId: Int) {
                 audioEnhancer?.release()
                 audioEqualizer?.release()
