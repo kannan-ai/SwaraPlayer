@@ -52,7 +52,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -215,19 +214,37 @@ fun MusicPlayerScreen(
                     selectedAudioIds = selectedAudioIds,
                     isSelectionMode = isSelectionMode,
                     onToggleSelect = { id -> viewModel.toggleAudioSelection(id) },
-                    onTrackClick = { track -> viewModel.playAudioTrack(track, context) },
+                    onTrackClick = { track ->
+                        viewModel.playAudioTrack(track, context)
+                        onOpenExpandedPlayer()
+                    },
                 )
                 1 -> ArtistsTabContent(
                     artists = artistsList,
-                    onArtistClick = {},
+                    onArtistClick = { artist ->
+                        artist.tracks.firstOrNull()?.let { track ->
+                            viewModel.playAudioTrack(track, context)
+                            onOpenExpandedPlayer()
+                        }
+                    },
                 )
                 2 -> AlbumsTabContent(
                     albums = albumsList,
-                    onAlbumClick = {},
+                    onAlbumClick = { album ->
+                        album.tracks.firstOrNull()?.let { track ->
+                            viewModel.playAudioTrack(track, context)
+                            onOpenExpandedPlayer()
+                        }
+                    },
                 )
                 3 -> FoldersTabContent(
                     folders = listOf("Music"),
-                    onFolderClick = {},
+                    onFolderClick = {
+                        audioTracks.firstOrNull()?.let { track ->
+                            viewModel.playAudioTrack(track, context)
+                            onOpenExpandedPlayer()
+                        }
+                    },
                 )
             }
         }
