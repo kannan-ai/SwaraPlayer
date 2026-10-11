@@ -560,7 +560,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     fun checkForAppUpdates() {
         viewModelScope.launch(Dispatchers.IO) {
             isCheckingUpdate.value = true
-            val info = UpdateChecker.checkForUpdate(currentVersion = "v0.0.1")
+            val info = UpdateChecker.checkForUpdate(currentVersion = "v0.0.2")
             updateInfoState.value = info
             isCheckingUpdate.value = false
         }

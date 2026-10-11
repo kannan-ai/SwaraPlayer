@@ -277,7 +277,7 @@ fun AppSettingsScreen(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Version v0.0.1 • Open Source GitHub Edition",
+                        text = "Version v0.0.2 • Open Source GitHub Edition",
                         color = colors.textSecondary,
                         fontSize = 12.sp,
                     )
