@@ -40,7 +40,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -69,6 +68,7 @@ fun VideoLibraryScreen(
     val foldersList by viewModel.foldersList.collectAsState()
     val selectedFolder by viewModel.selectedFolder.collectAsState()
     val isGridView by viewModel.isGridViewMode.collectAsState()
+    val openedVideoUris by viewModel.openedVideoUris.collectAsState()
     val query by viewModel.searchQuery.collectAsState()
 
     var showGesturesDialog by remember { mutableStateOf(false) }
@@ -117,15 +117,15 @@ fun VideoLibraryScreen(
             viewModel.selectFolder(null)
         }
 
-        val folderVideos = remember(selectedFolder, filteredVideos) {
-            filteredVideos.filter { it.folderName == selectedFolder!!.name }.mapIndexed { index, video ->
+        val folderVideos = remember(selectedFolder, filteredVideos, openedVideoUris) {
+            filteredVideos.filter { it.folderName == selectedFolder!!.name }.map { video ->
                 VideoItem(
                     id = video.id,
                     title = video.title,
                     durationText = formatTime(video.durationMs),
                     uri = video.uri,
                     thumbnailUri = video.uri.toString(),
-                    isUnopened = index < selectedFolder!!.newVideoCount,
+                    isUnopened = !openedVideoUris.contains(video.uri.toString()),
                 )
             }
         }
@@ -136,7 +136,10 @@ fun VideoLibraryScreen(
             isGridView = isGridView,
             onToggleViewMode = { viewModel.toggleViewMode() },
             onVideoClick = { videoItem ->
-                allVideos.find { it.id == videoItem.id }?.let { onSelectVideo(it) }
+                allVideos.find { it.id == videoItem.id }?.let { video ->
+                    viewModel.markVideoOpened(video.uri.toString())
+                    onSelectVideo(video)
+                }
             },
             onBack = { viewModel.selectFolder(null) },
         )
@@ -183,7 +186,10 @@ fun VideoLibraryScreen(
                             RecentVideoCard(
                                 video = videoItem,
                                 onClick = {
-                                    allVideos.find { it.id == videoItem.id }?.let { onSelectVideo(it) }
+                                    allVideos.find { it.id == videoItem.id }?.let { video ->
+                                        viewModel.markVideoOpened(video.uri.toString())
+                                        onSelectVideo(video)
+                                    }
                                 },
                             )
                         }
@@ -268,9 +274,7 @@ fun RecentVideoCard(video: VideoItem, onClick: () -> Unit) {
                 uri = video.uri,
                 id = video.id,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .blur(radius = 12.dp), // Blurred thumbnail for recently played / history items
+                modifier = Modifier.fillMaxSize(),
             )
 
             // Frosted Dark Overlay with Centered Cyan Play Icon

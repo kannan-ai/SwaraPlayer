@@ -22,4 +22,19 @@ class VideoPositionRepository(private val context: Context) {
         val prefs = context.videoDataStore.data.first()
         return prefs[key] ?: 0L
     }
+
+    suspend fun markAsOpened(uriStr: String) {
+        val key = longPreferencesKey("pos_${uriStr.hashCode()}")
+        context.videoDataStore.edit { prefs ->
+            if ((prefs[key] ?: 0L) == 0L) {
+                prefs[key] = 1L // Mark as opened
+            }
+        }
+    }
+
+    suspend fun isOpened(uriStr: String): Boolean {
+        val key = longPreferencesKey("pos_${uriStr.hashCode()}")
+        val prefs = context.videoDataStore.data.first()
+        return (prefs[key] ?: 0L) > 0L
+    }
 }

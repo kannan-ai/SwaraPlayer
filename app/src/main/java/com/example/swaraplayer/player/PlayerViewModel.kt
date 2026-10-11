@@ -44,6 +44,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     val videosList = MutableStateFlow<List<VideoFile>>(emptyList())
     val foldersList = MutableStateFlow<List<VideoFolder>>(emptyList())
     val selectedFolder = MutableStateFlow<VideoFolder?>(null)
+    val openedVideoUris = MutableStateFlow<Set<String>>(emptySet())
     val isLoading = MutableStateFlow(true)
 
     val searchQuery = MutableStateFlow("")
@@ -107,6 +108,15 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                 }
                 delay(500)
             }
+        }
+    }
+
+    fun markVideoOpened(uriStr: String) {
+        viewModelScope.launch {
+            positionRepo.markAsOpened(uriStr)
+            val current = openedVideoUris.value.toMutableSet()
+            current.add(uriStr)
+            openedVideoUris.value = current
         }
     }
 
@@ -289,16 +299,24 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
             }
             videosList.value = files
 
+            val openedSet = mutableSetOf<String>()
+            files.forEach { file ->
+                if (positionRepo.isOpened(file.uri.toString())) {
+                    openedSet.add(file.uri.toString())
+                }
+            }
+            openedVideoUris.value = openedSet
+
             // Group videos by folder and calculate exact unopened video count
             val folderMap = files.groupBy { it.folderName }
             val folders = folderMap.map { (name, videoFiles) ->
                 val unopenedCount = videoFiles.count { file ->
-                    positionRepo.getPosition(file.uri.toString()) == 0L
+                    !openedSet.contains(file.uri.toString())
                 }
                 VideoFolder(
                     name = name,
                     videoCount = videoFiles.size,
-                    newVideoCount = if (unopenedCount > 0) unopenedCount else videoFiles.size,
+                    newVideoCount = unopenedCount,
                     totalSizeBytes = videoFiles.sumOf { it.sizeBytes },
                     previewVideoUri = videoFiles.firstOrNull()?.uri,
                 )
