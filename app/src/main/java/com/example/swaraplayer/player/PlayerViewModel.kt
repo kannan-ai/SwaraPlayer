@@ -126,7 +126,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun markVideoOpened(uriStr: String) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             positionRepo.markAsOpened(uriStr)
             val current = openedVideoUris.value.toMutableSet()
             current.add(uriStr)
@@ -135,7 +135,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun recordVideoPlayback(uriStr: String) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             val now = System.currentTimeMillis()
             positionRepo.recordPlayback(uriStr)
 
@@ -641,12 +641,12 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         val totalMs = duration.value
         if (posMs < 5000L || (totalMs > 0 && posMs > totalMs * 0.95f)) {
             // Ignore saving if at the very start or near the end
-            viewModelScope.launch {
+            viewModelScope.launch(Dispatchers.IO) {
                 positionRepo.savePosition(uriStr, 0L)
             }
             return
         }
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             positionRepo.savePosition(uriStr, posMs)
         }
     }
