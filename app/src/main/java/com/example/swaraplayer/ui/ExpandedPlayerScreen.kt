@@ -32,6 +32,8 @@ import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Repeat
+import androidx.compose.material.icons.filled.RepeatOne
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
@@ -67,6 +69,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.swaraplayer.data.AudioPreset
+import com.example.swaraplayer.data.AudioRepeatMode
 import com.example.swaraplayer.data.SleepTimerMode
 import com.example.swaraplayer.player.PlayerViewModel
 import com.example.swaraplayer.ui.components.AudioThumbnailImage
@@ -90,6 +93,8 @@ fun ExpandedPlayerScreen(
     val sleepTimer by viewModel.sleepTimerMode.collectAsState()
     val currentEqPreset by viewModel.currentEqualizerPreset.collectAsState()
     val favoriteTrackIds by viewModel.favoriteTrackIds.collectAsState()
+    val isShuffle by viewModel.isShuffleEnabled.collectAsState()
+    val repeatMode by viewModel.audioRepeatMode.collectAsState()
 
     var showXRayDialog by remember { mutableStateOf(false) }
     var showEqDialog by remember { mutableStateOf(false) }
@@ -152,12 +157,22 @@ fun ExpandedPlayerScreen(
                         )
                     }
 
-                    IconButton(onClick = { showXRayDialog = true }) {
-                        Icon(
-                            imageVector = Icons.Default.GraphicEq,
-                            contentDescription = "X-Ray Audio Inspector",
-                            tint = colors.accentOrange,
-                        )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(onClick = { viewModel.shareTrack(context, track) }) {
+                            Icon(
+                                imageVector = Icons.Default.Share,
+                                contentDescription = "Share Song",
+                                tint = colors.accentOrange,
+                            )
+                        }
+
+                        IconButton(onClick = { showXRayDialog = true }) {
+                            Icon(
+                                imageVector = Icons.Default.GraphicEq,
+                                contentDescription = "X-Ray Audio Inspector",
+                                tint = colors.accentOrange,
+                            )
+                        }
                     }
                 }
             },
@@ -331,8 +346,15 @@ fun ExpandedPlayerScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceEvenly,
                 ) {
-                    IconButton(onClick = {}) {
-                        Icon(Icons.Default.Shuffle, contentDescription = "Shuffle", tint = Color.LightGray)
+                    IconButton(onClick = {
+                        viewModel.toggleShuffle()
+                        Toast.makeText(context, if (!isShuffle) "Shuffle On" else "Shuffle Off", Toast.LENGTH_SHORT).show()
+                    }) {
+                        Icon(
+                            imageVector = Icons.Default.Shuffle,
+                            contentDescription = "Shuffle",
+                            tint = if (isShuffle) colors.accentOrange else Color.LightGray,
+                        )
                     }
                     IconButton(onClick = { viewModel.skipToPrevAudioTrack() }) {
                         Icon(Icons.Default.SkipPrevious, contentDescription = "Previous", tint = Color.White, modifier = Modifier.size(36.dp))
@@ -356,8 +378,15 @@ fun ExpandedPlayerScreen(
                     IconButton(onClick = { viewModel.skipToNextAudioTrack() }) {
                         Icon(Icons.Default.SkipNext, contentDescription = "Next", tint = Color.White, modifier = Modifier.size(36.dp))
                     }
-                    IconButton(onClick = {}) {
-                        Icon(Icons.Default.Repeat, contentDescription = "Repeat", tint = Color.LightGray)
+                    IconButton(onClick = {
+                        viewModel.cycleAudioRepeatMode()
+                        Toast.makeText(context, viewModel.audioRepeatMode.value.label, Toast.LENGTH_SHORT).show()
+                    }) {
+                        Icon(
+                            imageVector = if (repeatMode == AudioRepeatMode.ONE) Icons.Default.RepeatOne else Icons.Default.Repeat,
+                            contentDescription = "Repeat",
+                            tint = if (repeatMode != AudioRepeatMode.OFF) colors.accentOrange else Color.LightGray,
+                        )
                     }
                 }
             }

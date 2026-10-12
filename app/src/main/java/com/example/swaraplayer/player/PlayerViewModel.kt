@@ -19,6 +19,7 @@ import com.example.swaraplayer.data.Album
 import com.example.swaraplayer.data.Artist
 import com.example.swaraplayer.data.AspectRatioMode
 import com.example.swaraplayer.data.AudioPreset
+import com.example.swaraplayer.data.AudioRepeatMode
 import com.example.swaraplayer.data.MediaFile
 import com.example.swaraplayer.data.OrientationMode
 import com.example.swaraplayer.data.SanitizedMetadata
@@ -90,6 +91,9 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     val audioDuration = MutableStateFlow(0L)
     val dominantColor = MutableStateFlow(Color(0xFF1E1E2C))
 
+    val isShuffleEnabled = MutableStateFlow(false)
+    val audioRepeatMode = MutableStateFlow(AudioRepeatMode.OFF)
+
     private var audioPlayerRef: Player? = null
 
     val subtitleStyle = MutableStateFlow(SubtitleStyle())
@@ -113,6 +117,36 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                 delay(500)
             }
         }
+    }
+
+    fun toggleShuffle() {
+        isShuffleEnabled.value = !isShuffleEnabled.value
+        audioPlayerRef?.shuffleModeEnabled = isShuffleEnabled.value
+    }
+
+    fun cycleAudioRepeatMode() {
+        val next = when (audioRepeatMode.value) {
+            AudioRepeatMode.OFF -> AudioRepeatMode.ALL
+            AudioRepeatMode.ALL -> AudioRepeatMode.ONE
+            AudioRepeatMode.ONE -> AudioRepeatMode.OFF
+        }
+        audioRepeatMode.value = next
+        audioPlayerRef?.repeatMode = when (next) {
+            AudioRepeatMode.OFF -> Player.REPEAT_MODE_OFF
+            AudioRepeatMode.ALL -> Player.REPEAT_MODE_ALL
+            AudioRepeatMode.ONE -> Player.REPEAT_MODE_ONE
+        }
+    }
+
+    fun shareTrack(context: Context, track: MediaFile?) {
+        if (track == null) return
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = "audio/*"
+            putExtra(Intent.EXTRA_STREAM, track.uri)
+            putExtra(Intent.EXTRA_SUBJECT, track.title)
+            putExtra(Intent.EXTRA_TEXT, "Listening to '${track.title}' by ${track.artist} on Swara Player 🎵")
+        }
+        context.startActivity(Intent.createChooser(intent, "Share Song"))
     }
 
     fun toggleFavoriteTrack(trackId: Long) {

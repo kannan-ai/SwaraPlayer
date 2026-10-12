@@ -83,6 +83,12 @@ enum class AudioPreset(val label: String) {
     POP("Pop"),
 }
 
+enum class AudioRepeatMode(val label: String) {
+    OFF("Repeat Off"),
+    ALL("Repeat All"),
+    ONE("Repeat One"),
+}
+
 enum class SleepTimerMode(val label: String, val minutes: Int) {
     OFF("Off", 0),
     MIN_15("15 mins", 15),
