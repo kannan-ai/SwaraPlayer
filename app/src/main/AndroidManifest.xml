@@ -23,7 +23,7 @@
         android:theme="@style/Theme.SwaraPlayer">
         <activity
             android:name=".MainActivity"
-            android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation|keyboardHidden"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation|keyboardHidden|uiMode|density|layoutDirection"
             android:exported="true"
             android:label="@string/app_name"
             android:launchMode="singleTop"

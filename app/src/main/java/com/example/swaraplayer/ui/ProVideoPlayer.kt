@@ -89,6 +89,7 @@ import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
+import androidx.media3.common.VideoSize
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.AspectRatioFrameLayout
@@ -328,16 +329,15 @@ fun ProVideoPlayer(
         onDispose {}
     }
 
-    // Orientation Override Control (Respect System Orientation Lock when SENSOR)
+    // Robust Screen Orientation Lock Override across all smartphone brands & OEM OS skins
     DisposableEffect(orientationMode) {
         activity?.requestedOrientation = when (orientationMode) {
-            OrientationMode.SENSOR -> ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
-            OrientationMode.LANDSCAPE -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+            OrientationMode.LANDSCAPE -> ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
             OrientationMode.PORTRAIT -> ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+            OrientationMode.SENSOR -> ActivityInfo.SCREEN_ORIENTATION_SENSOR
         }
         onDispose {
             activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
-            viewModel.orientationMode.value = OrientationMode.SENSOR
         }
     }
 
@@ -375,7 +375,7 @@ fun ProVideoPlayer(
         exoPlayer.prepare()
 
         scope.launch {
-            viewModel.recordVideoPlayback(activeVideoFile.uri.toString())
+            viewModel.markVideoOpened(activeVideoFile.uri.toString())
             val savedPos = viewModel.getSavedPosition(activeVideoFile.uri.toString())
             if (savedPos > 0) {
                 exoPlayer.seekTo(savedPos)
@@ -389,6 +389,17 @@ fun ProVideoPlayer(
         val listener = object : Player.Listener {
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 viewModel.isPlaying.value = isPlaying
+            }
+
+            override fun onVideoSizeChanged(videoSize: VideoSize) {
+                // Auto-Detect Vertical vs Horizontal Video Orientation on load
+                if (videoSize.width > 0 && videoSize.height > 0) {
+                    if (videoSize.height > videoSize.width * 1.1f) {
+                        viewModel.orientationMode.value = OrientationMode.PORTRAIT
+                    } else {
+                        viewModel.orientationMode.value = OrientationMode.LANDSCAPE
+                    }
+                }
             }
 
             override fun onPlaybackStateChanged(playbackState: Int) {
