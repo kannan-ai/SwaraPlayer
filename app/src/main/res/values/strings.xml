@@ -1,3 +1,9 @@
 <resources>
     <string name="app_name">Swara Player</string>
+    <string name="shortcut_video_short">Video Library</string>
+    <string name="shortcut_video_long">Open Video Library</string>
+    <string name="shortcut_music_short">Music Player</string>
+    <string name="shortcut_music_long">Open Music Player</string>
+    <string name="shortcut_search_short">Search Media</string>
+    <string name="shortcut_search_long">Search Videos &amp; Songs</string>
 </resources>

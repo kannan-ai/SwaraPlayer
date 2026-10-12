@@ -153,6 +153,16 @@ class MainActivity : ComponentActivity() {
                         var isExpandedMusicPlayerOpen by remember { mutableStateOf(false) }
                         var currentNavTab by remember { mutableStateOf(AppNavTab.LOCAL) }
 
+                        // Handle App Launcher Shortcuts (long-press app icon)
+                        LaunchedEffect(intent) {
+                            val target = intent?.getStringExtra("shortcut_target")
+                            when (target) {
+                                "video_library" -> currentNavTab = AppNavTab.LOCAL
+                                "music_player" -> currentNavTab = AppNavTab.MUSIC
+                                "search" -> currentNavTab = AppNavTab.SEARCH
+                            }
+                        }
+
                         // Intercept phone's hardware back button when non-home tab is active
                         if (currentNavTab != AppNavTab.LOCAL && activeVideo == null && !isExpandedMusicPlayerOpen) {
                             BackHandler(enabled = true) {

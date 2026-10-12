@@ -30,6 +30,11 @@
             android:supportsPictureInPicture="true"
             android:theme="@style/Theme.SwaraPlayer"
             android:windowSoftInputMode="adjustResize">
+
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
+
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

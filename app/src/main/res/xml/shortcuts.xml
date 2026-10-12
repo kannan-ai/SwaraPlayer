@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="shortcut_video_library"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_video"
+        android:shortcutShortLabel="@string/shortcut_video_short"
+        android:shortcutLongLabel="@string/shortcut_video_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.example.swaraplayer"
+            android:targetClass="com.example.swaraplayer.MainActivity">
+            <extra
+                android:name="shortcut_target"
+                android:value="video_library" />
+        </intent>
+    </shortcut>
+
+    <shortcut
+        android:shortcutId="shortcut_music_player"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_music"
+        android:shortcutShortLabel="@string/shortcut_music_short"
+        android:shortcutLongLabel="@string/shortcut_music_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.example.swaraplayer"
+            android:targetClass="com.example.swaraplayer.MainActivity">
+            <extra
+                android:name="shortcut_target"
+                android:value="music_player" />
+        </intent>
+    </shortcut>
+
+    <shortcut
+        android:shortcutId="shortcut_search"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_search"
+        android:shortcutShortLabel="@string/shortcut_search_short"
+        android:shortcutLongLabel="@string/shortcut_search_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.example.swaraplayer"
+            android:targetClass="com.example.swaraplayer.MainActivity">
+            <extra
+                android:name="shortcut_target"
+                android:value="search" />
+        </intent>
+    </shortcut>
+</shortcuts>
