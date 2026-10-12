@@ -100,7 +100,16 @@ class MainActivity : ComponentActivity() {
             viewModel.scanLocalAudioTracks()
         }
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            permissionLauncher.launch(
+                arrayOf(
+                    Manifest.permission.READ_MEDIA_VIDEO,
+                    Manifest.permission.READ_MEDIA_AUDIO,
+                    Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED,
+                    Manifest.permission.POST_NOTIFICATIONS,
+                ),
+            )
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             permissionLauncher.launch(
                 arrayOf(
                     Manifest.permission.READ_MEDIA_VIDEO,
@@ -306,12 +315,19 @@ class MainActivity : ComponentActivity() {
 
     override fun onUserLeaveHint() {
         super.onUserLeaveHint()
-        // Only trigger Picture-in-Picture mode if video playback is actively playing
         if (viewModel.isPlaying.value) {
-            val params = PictureInPictureParams.Builder()
-                .setAspectRatio(Rational(16, 9))
-                .build()
-            enterPictureInPictureMode(params)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                val params = PictureInPictureParams.Builder()
+                    .setAutoEnterEnabled(true)
+                    .setAspectRatio(Rational(16, 9))
+                    .build()
+                setPictureInPictureParams(params)
+            } else {
+                val params = PictureInPictureParams.Builder()
+                    .setAspectRatio(Rational(16, 9))
+                    .build()
+                enterPictureInPictureMode(params)
+            }
         }
     }
 

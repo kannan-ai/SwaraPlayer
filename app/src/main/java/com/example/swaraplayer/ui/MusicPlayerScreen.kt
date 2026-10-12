@@ -35,13 +35,13 @@ import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRowDefaults
 import androidx.compose.material3.Text
@@ -219,10 +219,10 @@ fun MusicPlayerScreen(
                             )
                         }
 
-                        IconButton(onClick = {}, modifier = Modifier.size(30.dp)) {
+                        IconButton(onClick = onOpenSettings, modifier = Modifier.size(30.dp)) {
                             Icon(
-                                imageVector = Icons.Default.FilterList,
-                                contentDescription = "Sort Options",
+                                imageVector = Icons.Default.Settings,
+                                contentDescription = "Settings",
                                 tint = colors.textPrimary,
                                 modifier = Modifier.size(18.dp),
                             )

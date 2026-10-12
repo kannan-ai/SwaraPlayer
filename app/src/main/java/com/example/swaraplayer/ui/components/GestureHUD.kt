@@ -22,6 +22,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import java.util.Locale
 
 @Composable
 fun SideHUDBar(value: Float, icon: ImageVector, isLeft: Boolean) {
@@ -57,7 +58,7 @@ fun SideHUDBar(value: Float, icon: ImageVector, isLeft: Boolean) {
             Icon(icon, contentDescription = null, tint = activeColor, modifier = Modifier.size(18.dp))
             Spacer(Modifier.height(4.dp))
             Text(
-                text = if (isBoost) "+${((value - 1f) * 100).toInt()}%" else "${(value * 100).toInt()}%",
+                text = if (isBoost) String.format(Locale.US, "+%d%%", ((value - 1f) * 100).toInt()) else String.format(Locale.US, "%d%%", (value * 100).toInt()),
                 color = Color.White,
                 fontSize = 10.sp,
                 fontWeight = FontWeight.Bold,
@@ -95,8 +96,8 @@ fun formatTime(ms: Long): String {
     val secs = totalSecs % 60
     val hrs = mins / 60
     return if (hrs > 0) {
-        String.format("%d:%02d:%02d", hrs, mins % 60, secs)
+        String.format(Locale.US, "%d:%02d:%02d", hrs, mins % 60, secs)
     } else {
-        String.format("%02d:%02d", mins, secs)
+        String.format(Locale.US, "%02d:%02d", mins, secs)
     }
 }

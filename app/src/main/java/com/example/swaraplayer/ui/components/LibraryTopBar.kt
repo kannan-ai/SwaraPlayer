@@ -36,13 +36,13 @@ import com.example.swaraplayer.ui.theme.LocalAppColors
 @Composable
 fun LibraryTopBar(
     title: String,
+    modifier: Modifier = Modifier,
     showBackButton: Boolean = false,
     isGridView: Boolean = true,
     onToggleViewMode: () -> Unit,
     onBack: () -> Unit,
     onHelp: () -> Unit,
     onSortSelect: (SortOrder) -> Unit,
-    modifier: Modifier = Modifier,
 ) {
     val colors = LocalAppColors.current
     var showSortMenu by remember { mutableStateOf(false) }
