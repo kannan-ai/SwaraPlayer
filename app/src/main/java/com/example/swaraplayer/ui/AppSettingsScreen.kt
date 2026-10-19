@@ -1,6 +1,8 @@
 package com.example.swaraplayer.ui
 
+import android.content.Context
 import android.content.Intent
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -46,9 +48,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.FileProvider
 import com.example.swaraplayer.player.PlayerViewModel
 import com.example.swaraplayer.ui.theme.AppThemeMode
 import com.example.swaraplayer.ui.theme.LocalAppColors
+import java.io.File
 
 @Composable
 fun AppSettingsScreen(
@@ -137,16 +141,9 @@ fun AppSettingsScreen(
                         }
                     }
 
-                    // Right Action: App Share (OUTBOX / EXPORT)
+                    // Right Action: Share Real APK File via FileProvider
                     Button(
-                        onClick = {
-                            val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                                type = "text/plain"
-                                putExtra(Intent.EXTRA_SUBJECT, "Download Swara Player")
-                                putExtra(Intent.EXTRA_TEXT, "Experience Swara Player - Premium Media Player for Android!\nDownload APK: https://github.com/kannan-ai/SwaraPlayer/releases")
-                            }
-                            context.startActivity(Intent.createChooser(shareIntent, "Share Swara Player"))
-                        },
+                        onClick = { shareApkFile(context) },
                         colors = ButtonDefaults.buttonColors(containerColor = colors.background),
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.weight(1f),
@@ -284,6 +281,31 @@ fun AppSettingsScreen(
                 }
             }
         }
+    }
+}
+
+private fun shareApkFile(context: Context) {
+    try {
+        val originalApk = File(context.applicationInfo.sourceDir)
+        val cacheApk = File(context.cacheDir, "SwaraPlayer.apk")
+        originalApk.copyTo(cacheApk, overwrite = true)
+
+        val apkUri = FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            cacheApk,
+        )
+
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = "application/vnd.android.package-archive"
+            putExtra(Intent.EXTRA_STREAM, apkUri)
+            putExtra(Intent.EXTRA_SUBJECT, "Swara Player APK")
+            putExtra(Intent.EXTRA_TEXT, "Here is Swara Player APK! Install and enjoy local video & music playback.")
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        context.startActivity(Intent.createChooser(intent, "Share SwaraPlayer.apk"))
+    } catch (e: Exception) {
+        Toast.makeText(context, "Error sharing APK: ${e.message}", Toast.LENGTH_SHORT).show()
     }
 }
 
