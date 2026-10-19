@@ -267,10 +267,12 @@ class MainActivity : ComponentActivity() {
                         } else {
                             Scaffold(
                                 bottomBar = {
-                                    AppBottomNavigationBar(
-                                        currentTab = currentNavTab,
-                                        onTabSelected = { currentNavTab = it },
-                                    )
+                                    if (currentNavTab != AppNavTab.SETTINGS) {
+                                        AppBottomNavigationBar(
+                                            currentTab = currentNavTab,
+                                            onTabSelected = { currentNavTab = it },
+                                        )
+                                    }
                                 },
                                 containerColor = themeColors.background,
                             ) { innerPadding ->
