@@ -19,6 +19,11 @@
     @com.squareup.moshi.Json <fields>;
     @kotlinx.serialization.SerialName <fields>;
 }
+# Universal wildcard matching any package root (e.g., com.example, com.swara, etc.)
+-keep class **.data.local.dto.** { *; }
+-keep class **.data.local.entity.** { *; }
+-keep class **.data.local.relation.** { *; }
+-keep class **.ui.model.** { *; }
 -keep class com.example.swaraplayer.data.** { *; }
 
 # 3. Media3 & ExoPlayer Hardware Components (For Media/Video Modules)
@@ -38,3 +43,7 @@
 -keepclasseswithmembernames class * {
     native <methods>;
 }
+
+# 6. Jetpack Compose Animation & Layout Primitives
+-keepclassmembers class androidx.compose.animation.core.** { *; }
+-dontwarn androidx.compose.**
