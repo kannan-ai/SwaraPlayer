@@ -183,6 +183,8 @@ fun ProVideoPlayer(
 
         ExoPlayer.Builder(context)
             .setAudioAttributes(audioAttributes, true) // Audio focus management
+            .setHandleAudioBecomingNoisy(true)
+            .setWakeMode(C.WAKE_MODE_LOCAL) // OEM background termination guard
             .setSeekBackIncrementMs(10000)
             .setSeekForwardIncrementMs(10000)
             .build()
