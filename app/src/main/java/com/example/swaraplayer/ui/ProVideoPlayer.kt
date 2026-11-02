@@ -22,9 +22,10 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -115,6 +116,7 @@ import com.example.swaraplayer.ui.components.VideoControlsOverlay
 import com.example.swaraplayer.ui.components.VideoMetadataDialog
 import com.example.swaraplayer.ui.components.VideoSettingsDrawer
 import com.example.swaraplayer.ui.components.formatTime
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.abs
@@ -217,18 +219,14 @@ fun ProVideoPlayer(
     var showGesturesDialog by remember { mutableStateOf(false) }
     var resumeNoticeMs by remember { mutableLongStateOf(0L) }
 
-    // Tap Gesture States
+    // Tap & Seek States
     var isLongPressBoosting by remember { mutableStateOf(false) }
     var seekBubbleText by remember { mutableStateOf<String?>(null) }
     var isSeekBubbleForward by remember { mutableStateOf(true) }
-
-    // MX Player Directional Drag States
-    var activeGesture by remember { mutableStateOf(GestureDirection.NONE) }
-    var scrubStartPos by remember { mutableLongStateOf(0L) }
-    var startBrightness by remember { mutableFloatStateOf(0.5f) }
-    var startVolumeRatio by remember { mutableFloatStateOf(0.5f) }
-    var totalDragX by remember { mutableFloatStateOf(0f) }
-    var totalDragY by remember { mutableFloatStateOf(0f) }
+    var consecutiveTapCount by remember { mutableIntStateOf(0) }
+    var isTapForward by remember { mutableStateOf(true) }
+    var tapAccumulatorJob by remember { mutableStateOf<Job?>(null) }
+    var seekHudTriggerKey by remember { mutableLongStateOf(0L) }
 
     // HUD States
     var hudVolume by remember { mutableFloatStateOf(-1f) }
@@ -521,145 +519,199 @@ fun ProVideoPlayer(
             )
         }
 
-        // Layer 1: Dedicated MX Player Gesture Surface Layer
+        // Layer 1: Unified Touch Gesture State Machine Surface Layer
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                // Multi-touch Pinch to Zoom & Pan Gesture
                 .pointerInput(isLocked) {
                     if (isLocked) return@pointerInput
-                    detectTransformGestures { _, pan, zoom, _ ->
-                        scale = (scale * zoom).coerceIn(1f, 4f)
-                        offset = if (scale > 1f) offset + pan else Offset.Zero
-                    }
-                }
-                // MX Player Directional Locked Drag Gestures (Vertical Brightness/Volume & Horizontal 1:1 Scrubbing)
-                .pointerInput(isLocked) {
-                    if (isLocked) return@pointerInput
-                    detectDragGestures(
-                        onDragStart = {
-                            showControls = true
-                            activeGesture = GestureDirection.NONE
-                            totalDragX = 0f
-                            totalDragY = 0f
-                            scrubStartPos = exoPlayer.currentPosition
 
-                            val lp = activity?.window?.attributes
-                            startBrightness = if ((lp?.screenBrightness ?: -1f) < 0) 0.5f else lp!!.screenBrightness
+                    val touchSlop = viewConfiguration.touchSlop
+                    val longPressTimeout = viewConfiguration.longPressTimeoutMillis
 
-                            val maxVol = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
-                            val currentVol = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
-                            val volRatio = currentVol.toFloat() / maxVol
-                            val boost = viewModel.volumeBoost.value
-                            startVolumeRatio = if (boost > 1.0f) boost else volRatio
-                        },
-                        onDragEnd = {
-                            if (activeGesture == GestureDirection.HORIZONTAL && hudScrubTime != null) {
-                                exoPlayer.seekTo(hudScrubTime!!)
-                            }
-                            activeGesture = GestureDirection.NONE
-                            hudVolume = -1f
-                            hudBrightness = -1f
-                            hudScrubTime = null
-                            hudScrubDelta = 0L
-                        },
-                        onDragCancel = {
-                            activeGesture = GestureDirection.NONE
-                            hudVolume = -1f
-                            hudBrightness = -1f
-                            hudScrubTime = null
-                            hudScrubDelta = 0L
-                        },
-                    ) { change, dragAmount ->
-                        totalDragX += dragAmount.x
-                        totalDragY += dragAmount.y
-                        val width = size.width
-                        val height = size.height
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+                        val startPos = down.position
+                        val startTime = System.currentTimeMillis()
 
-                        // Lock gesture direction on initial movement threshold (> 10px)
-                        if (activeGesture == GestureDirection.NONE) {
-                            if (abs(totalDragX) > 10f || abs(totalDragY) > 10f) {
-                                activeGesture = if (abs(totalDragX) > abs(totalDragY)) {
-                                    GestureDirection.HORIZONTAL
-                                } else if (change.position.x < width / 2) {
-                                    GestureDirection.VERTICAL_LEFT
+                        var gestureType = GestureDirection.NONE
+                        var isLongPressActive = false
+
+                        val initialVolBoost = viewModel.volumeBoost.value
+                        val maxVol = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+                        val currentVol = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
+                        val startVolRatio = if (initialVolBoost > 1.0f) initialVolBoost else (currentVol.toFloat() / maxVol)
+
+                        val lp = activity?.window?.attributes
+                        val startBrightnessVal = if ((lp?.screenBrightness ?: -1f) < 0) 0.5f else lp!!.screenBrightness
+                        val startScrubPos = exoPlayer.currentPosition
+
+                        var totalDx = 0f
+                        var totalDy = 0f
+
+                        while (true) {
+                            val event = awaitPointerEvent()
+                            val pointerCount = event.changes.size
+
+                            // 1. Two-finger Pinch to Zoom & Pan
+                            if (pointerCount >= 2) {
+                                gestureType = GestureDirection.NONE
+                                if (isLongPressActive) {
+                                    isLongPressActive = false
+                                    isLongPressBoosting = false
+                                    exoPlayer.setPlaybackSpeed(viewModel.playbackSpeed.value)
+                                }
+
+                                val zoom = event.calculateZoom()
+                                val pan = event.calculatePan()
+
+                                scale = (scale * zoom).coerceIn(1.0f, 4.0f)
+                                offset = if (scale > 1.0f) {
+                                    val maxOffsetX = (size.width * (scale - 1f)) / 2f
+                                    val maxOffsetY = (size.height * (scale - 1f)) / 2f
+                                    Offset(
+                                        x = (offset.x + pan.x).coerceIn(-maxOffsetX, maxOffsetX),
+                                        y = (offset.y + pan.y).coerceIn(-maxOffsetY, maxOffsetY),
+                                    )
                                 } else {
-                                    GestureDirection.VERTICAL_RIGHT
+                                    Offset.Zero
+                                }
+                                event.changes.forEach { it.consume() }
+                                if (event.changes.all { !it.pressed }) break
+                                continue
+                            }
+
+                            // 2. Single Finger Interactions
+                            val change = event.changes.firstOrNull()
+                            if (change == null || !change.pressed) {
+                                // Pointer Released or Cancelled
+                                if (isLongPressActive) {
+                                    isLongPressActive = false
+                                    isLongPressBoosting = false
+                                    exoPlayer.setPlaybackSpeed(viewModel.playbackSpeed.value)
+                                }
+
+                                if (gestureType == GestureDirection.NONE) {
+                                    val elapsed = System.currentTimeMillis() - startTime
+                                    if (elapsed < longPressTimeout) {
+                                        // Process Tap / Double-Tap
+                                        val tappedForward = startPos.x > (size.width / 2f)
+                                        tapAccumulatorJob?.cancel()
+
+                                        if (consecutiveTapCount == 0) {
+                                            // First tap: delay 250ms for potential second tap
+                                            consecutiveTapCount = 1
+                                            isTapForward = tappedForward
+                                            tapAccumulatorJob = scope.launch {
+                                                delay(250L)
+                                                if (consecutiveTapCount == 1) {
+                                                    showControls = !showControls
+                                                    consecutiveTapCount = 0
+                                                }
+                                            }
+                                        } else if (isTapForward == tappedForward) {
+                                            consecutiveTapCount++
+                                            val seekDeltaSec = (consecutiveTapCount - 1) * 10
+                                            val deltaMs = if (tappedForward) seekDeltaSec * 1000L else -seekDeltaSec * 1000L
+                                            val targetMs = (exoPlayer.currentPosition + deltaMs).coerceIn(0L, exoPlayer.duration.coerceAtLeast(0L))
+
+                                            seekBubbleText = if (tappedForward) "+${seekDeltaSec}s" else "-${seekDeltaSec}s"
+                                            seekHudTriggerKey = System.currentTimeMillis()
+                                            exoPlayer.seekTo(targetMs)
+
+                                            tapAccumulatorJob = scope.launch {
+                                                delay(800L)
+                                                consecutiveTapCount = 0
+                                                seekBubbleText = null
+                                            }
+                                        } else {
+                                            // Opposite side tapped: switch direction
+                                            consecutiveTapCount = 1
+                                            isTapForward = tappedForward
+                                        }
+                                    }
+                                } else if (gestureType == GestureDirection.HORIZONTAL && hudScrubTime != null) {
+                                    exoPlayer.seekTo(hudScrubTime!!)
+                                }
+
+                                // Clear HUD overlays
+                                hudVolume = -1f
+                                hudBrightness = -1f
+                                hudScrubTime = null
+                                hudScrubDelta = 0L
+                                break
+                            }
+
+                            // Calculate Drag Delta
+                            val dragDelta = change.position - startPos
+                            totalDx = dragDelta.x
+                            totalDy = dragDelta.y
+
+                            // Check Directional Locking threshold (> touchSlop)
+                            if (gestureType == GestureDirection.NONE) {
+                                if (abs(totalDx) > touchSlop || abs(totalDy) > touchSlop) {
+                                    gestureType = if (abs(totalDx) > abs(totalDy)) {
+                                        GestureDirection.HORIZONTAL
+                                    } else if (startPos.x < size.width / 2f) {
+                                        GestureDirection.VERTICAL_LEFT
+                                    } else {
+                                        GestureDirection.VERTICAL_RIGHT
+                                    }
+                                } else if (System.currentTimeMillis() - startTime >= longPressTimeout && !isLongPressActive) {
+                                    // Trigger 3.0x Long Press Speed Boost
+                                    isLongPressActive = true
+                                    isLongPressBoosting = true
+                                    exoPlayer.setPlaybackSpeed(3.0f)
+                                    vibrator?.vibrate(VibrationEffect.createOneShot(40, VibrationEffect.DEFAULT_AMPLITUDE))
+                                }
+                            }
+
+                            // Execute Locked Direction Gesture
+                            when (gestureType) {
+                                GestureDirection.HORIZONTAL -> {
+                                    val deltaMs = (totalDx / size.width * 120000f).toLong()
+                                    val targetMs = (startScrubPos + deltaMs).coerceIn(0L, exoPlayer.duration.coerceAtLeast(0L))
+                                    hudScrubDelta = targetMs - startScrubPos
+                                    hudScrubTime = targetMs
+                                    change.consume()
+                                }
+                                GestureDirection.VERTICAL_LEFT -> {
+                                    val newBri = (startBrightnessVal - (totalDy / size.height)).coerceIn(0.01f, 1.0f)
+                                    activity?.window?.let { window ->
+                                        val lpWin = window.attributes
+                                        lpWin.screenBrightness = newBri
+                                        window.attributes = lpWin
+                                    }
+                                    hudBrightness = newBri
+                                    change.consume()
+                                }
+                                GestureDirection.VERTICAL_RIGHT -> {
+                                    val newVolRatio = (startVolRatio - (totalDy / size.height * 1.2f)).coerceIn(0f, 1.5f)
+                                    if (newVolRatio <= 1.0f) {
+                                        val targetVol = (newVolRatio * maxVol).toInt().coerceIn(0, maxVol)
+                                        audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, targetVol, 0)
+                                        viewModel.volumeBoost.value = 1.0f
+                                        audioEnhancer?.setBoostRatio(1.0f)
+                                        hudVolume = newVolRatio
+                                    } else {
+                                        audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, maxVol, 0)
+                                        viewModel.volumeBoost.value = newVolRatio
+                                        audioEnhancer?.setBoostRatio(newVolRatio)
+                                        hudVolume = newVolRatio
+                                    }
+                                    change.consume()
+                                }
+                                GestureDirection.NONE -> {
+                                    if (System.currentTimeMillis() - startTime >= longPressTimeout && !isLongPressActive) {
+                                        isLongPressActive = true
+                                        isLongPressBoosting = true
+                                        exoPlayer.setPlaybackSpeed(3.0f)
+                                        vibrator?.vibrate(VibrationEffect.createOneShot(40, VibrationEffect.DEFAULT_AMPLITUDE))
+                                    }
                                 }
                             }
                         }
-
-                        // Execute Locked Direction Gesture
-                        when (activeGesture) {
-                            GestureDirection.HORIZONTAL -> {
-                                val deltaMs = (totalDragX / width * 120000f).toLong()
-                                val target = (scrubStartPos + deltaMs).coerceIn(0L, exoPlayer.duration.coerceAtLeast(0L))
-                                hudScrubDelta = target - scrubStartPos
-                                hudScrubTime = target
-                            }
-                            GestureDirection.VERTICAL_LEFT -> {
-                                val newBri = (startBrightness - (totalDragY / height)).coerceIn(0.01f, 1.0f)
-                                activity?.window?.let { window ->
-                                    val lp = window.attributes
-                                    lp.screenBrightness = newBri
-                                    window.attributes = lp
-                                }
-                                hudBrightness = newBri
-                            }
-                            GestureDirection.VERTICAL_RIGHT -> {
-                                val maxVol = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
-                                val newVolRatio = (startVolumeRatio - (totalDragY / height * 1.2f)).coerceIn(0f, 1.5f)
-
-                                if (newVolRatio <= 1.0f) {
-                                    val targetVol = (newVolRatio * maxVol).toInt().coerceIn(0, maxVol)
-                                    audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, targetVol, 0)
-                                    viewModel.volumeBoost.value = 1.0f
-                                    audioEnhancer?.setBoostRatio(1.0f)
-                                    hudVolume = newVolRatio
-                                } else {
-                                    // +100% to +150% Safe Super Audio Boost
-                                    audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, maxVol, 0)
-                                    viewModel.volumeBoost.value = newVolRatio
-                                    audioEnhancer?.setBoostRatio(newVolRatio)
-                                    hudVolume = newVolRatio
-                                }
-                            }
-                            GestureDirection.NONE -> {}
-                        }
                     }
-                }
-                // Unified Tap & Double Tap Handler across the ENTIRE viewport screen
-                .pointerInput(isLocked) {
-                    if (isLocked) return@pointerInput
-                    detectTapGestures(
-                        onTap = {
-                            showControls = !showControls
-                        },
-                        onDoubleTap = { offset ->
-                            showControls = true
-                            val isForward = offset.x > (size.width / 2f)
-                            isSeekBubbleForward = isForward
-                            seekBubbleText = if (isForward) "+10s" else "-10s"
-                            val deltaMs = if (isForward) 10_000L else -10_000L
-                            exoPlayer.seekTo((exoPlayer.currentPosition + deltaMs).coerceIn(0L, exoPlayer.duration))
-                            scope.launch {
-                                delay(650L)
-                                seekBubbleText = null
-                            }
-                        },
-                        onLongPress = {
-                            isLongPressBoosting = true
-                            exoPlayer.setPlaybackSpeed(3.0f)
-                            vibrator?.vibrate(VibrationEffect.createOneShot(40, VibrationEffect.DEFAULT_AMPLITUDE))
-                        },
-                        onPress = {
-                            tryAwaitRelease()
-                            if (isLongPressBoosting) {
-                                isLongPressBoosting = false
-                                exoPlayer.setPlaybackSpeed(viewModel.playbackSpeed.value)
-                            }
-                        },
-                    )
                 },
         )
 
@@ -761,6 +813,7 @@ fun ProVideoPlayer(
             ProgressiveSeekHUD(
                 text = text,
                 isForward = isSeekBubbleForward,
+                triggerKey = seekHudTriggerKey,
                 modifier = Modifier.align(
                     if (isSeekBubbleForward) Alignment.CenterEnd else Alignment.CenterStart,
                 ),

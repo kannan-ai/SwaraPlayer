@@ -21,18 +21,26 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.swaraplayer.ui.theme.LocalAppColors
 
 @Composable
-fun SpeedBoostPill(isBoosting: Boolean, speedMultiplier: Float = 3.0f) {
+fun SpeedBoostPill(
+    isBoosting: Boolean,
+    modifier: Modifier = Modifier,
+    speedMultiplier: Float = 3.0f,
+) {
+    val colors = LocalAppColors.current
+
     AnimatedVisibility(
         visible = isBoosting,
         enter = fadeIn(),
         exit = fadeOut(),
+        modifier = modifier,
     ) {
         Surface(
             color = Color.Black.copy(alpha = 0.85f),
             shape = RoundedCornerShape(20.dp),
-            border = BorderStroke(1.dp, Color.Cyan),
+            border = BorderStroke(1.dp, colors.accentOrange),
         ) {
             Row(
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
@@ -42,7 +50,7 @@ fun SpeedBoostPill(isBoosting: Boolean, speedMultiplier: Float = 3.0f) {
                 Icon(
                     imageVector = Icons.Default.FastForward,
                     contentDescription = "Speed Boost",
-                    tint = Color.Cyan,
+                    tint = colors.accentOrange,
                     modifier = Modifier.size(18.dp),
                 )
                 Text(

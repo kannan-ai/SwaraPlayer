@@ -1,5 +1,8 @@
 package com.example.swaraplayer.ui.components
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,55 +25,73 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.swaraplayer.ui.theme.LocalAppColors
 import java.util.Locale
 
 @Composable
-fun SideHUDBar(value: Float, icon: ImageVector, isLeft: Boolean) {
+fun SideHUDBar(
+    value: Float,
+    icon: ImageVector,
+    isLeft: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val colors = LocalAppColors.current
     val isBoost = value > 1.0f
-    val activeColor = if (isBoost) Color(0xFFFF9800) else Color(0xFF00E5FF)
+    val activeColor = if (isBoost) colors.accentOrange else Color(0xFF00E5FF)
 
-    Box(
-        modifier = Modifier
-            .fillMaxHeight(0.45f)
-            .width(44.dp)
-            .background(Color.Black.copy(alpha = 0.65f), RoundedCornerShape(22.dp))
-            .padding(vertical = 12.dp),
-        contentAlignment = Alignment.BottomCenter,
+    AnimatedVisibility(
+        visible = value >= 0f,
+        enter = fadeIn(),
+        exit = fadeOut(),
+        modifier = modifier,
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            val fillRatio = if (isBoost) (value - 1.0f) else value
+        Box(
+            modifier = Modifier
+                .fillMaxHeight(0.45f)
+                .width(44.dp)
+                .background(Color.Black.copy(alpha = 0.65f), RoundedCornerShape(22.dp))
+                .padding(vertical = 12.dp),
+            contentAlignment = Alignment.BottomCenter,
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                val fillRatio = if (isBoost) (value - 1.0f) / 0.5f else value
 
-            Box(
-                modifier = Modifier
-                    .width(6.dp)
-                    .height(110.dp)
-                    .background(Color.White.copy(alpha = 0.2f), CircleShape),
-                contentAlignment = Alignment.BottomCenter,
-            ) {
                 Box(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .fillMaxHeight(fillRatio.coerceIn(0f, 1f))
-                        .background(activeColor, CircleShape),
+                        .width(6.dp)
+                        .height(110.dp)
+                        .background(Color.White.copy(alpha = 0.2f), CircleShape),
+                    contentAlignment = Alignment.BottomCenter,
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .fillMaxHeight(fillRatio.coerceIn(0f, 1f))
+                            .background(activeColor, CircleShape),
+                    )
+                }
+                Spacer(Modifier.height(10.dp))
+                Icon(icon, contentDescription = null, tint = activeColor, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = if (isBoost) String.format(Locale.US, "+%d%%", ((value - 1f) * 100).toInt()) else String.format(Locale.US, "%d%%", (value * 100).toInt()),
+                    color = Color.White,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
                 )
             }
-            Spacer(Modifier.height(10.dp))
-            Icon(icon, contentDescription = null, tint = activeColor, modifier = Modifier.size(18.dp))
-            Spacer(Modifier.height(4.dp))
-            Text(
-                text = if (isBoost) String.format(Locale.US, "+%d%%", ((value - 1f) * 100).toInt()) else String.format(Locale.US, "%d%%", (value * 100).toInt()),
-                color = Color.White,
-                fontSize = 10.sp,
-                fontWeight = FontWeight.Bold,
-            )
         }
     }
 }
 
 @Composable
-fun ScrubbingOverlay(targetTimeMs: Long, deltaMs: Long) {
+fun ScrubbingOverlay(
+    targetTimeMs: Long,
+    deltaMs: Long,
+    modifier: Modifier = Modifier,
+) {
     Box(
-        modifier = Modifier
+        modifier = modifier
             .background(Color.Black.copy(alpha = 0.75f), RoundedCornerShape(16.dp))
             .padding(horizontal = 20.dp, vertical = 12.dp),
         contentAlignment = Alignment.Center,

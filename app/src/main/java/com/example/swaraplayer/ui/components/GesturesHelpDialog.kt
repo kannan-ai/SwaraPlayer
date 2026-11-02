@@ -42,12 +42,11 @@ fun GesturesHelpDialog(onDismiss: () -> Unit) {
                 GestureRow("Single Tap", "Toggle Controls Overlay")
                 GestureRow("Double Tap (Left)", "Quick Rewind -10s (-20s, -30s...)")
                 GestureRow("Double Tap (Right)", "Quick Fast Forward +10s (+20s...)")
-                GestureRow("Double Tap (Center)", "Play / Pause Toggle")
                 GestureRow("Long Press Hold", "3.0x Fast Forward Speed Boost")
                 GestureRow("Drag Left Side", "Screen Brightness Adjustment")
                 GestureRow("Drag Right Side", "Volume + Extra Boost (up to +15dB)")
                 GestureRow("Drag Horizontally", "1:1 Timeline Scrubbing")
-                GestureRow("Pinch & Pan", "1.0x to 4.0x Zoom & Smooth Pan")
+                GestureRow("Pinch & Pan", "1.0x to 4.0x Zoom & Bounded Pan")
             }
         },
         confirmButton = {
