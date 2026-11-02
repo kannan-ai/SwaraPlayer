@@ -45,7 +45,7 @@ fun GesturesHelpDialog(onDismiss: () -> Unit) {
                 GestureRow("Double Tap (Center)", "Play / Pause Toggle")
                 GestureRow("Long Press Hold", "3.0x Fast Forward Speed Boost")
                 GestureRow("Drag Left Side", "Screen Brightness Adjustment")
-                GestureRow("Drag Right Side", "Volume & +200% Audio Boost")
+                GestureRow("Drag Right Side", "Volume + Extra Boost (up to +15dB)")
                 GestureRow("Drag Horizontally", "1:1 Timeline Scrubbing")
                 GestureRow("Pinch & Pan", "1.0x to 4.0x Zoom & Smooth Pan")
             }
