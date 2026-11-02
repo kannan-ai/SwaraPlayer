@@ -88,6 +88,7 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.VideoSize
 import androidx.media3.common.util.UnstableApi
@@ -192,8 +193,10 @@ fun ProVideoPlayer(
 
     // Graceful Exit Handler (stops playback and returns to library)
     val handleExit = {
-        exoPlayer.stop()
-        exoPlayer.clearMediaItems()
+        try {
+            exoPlayer.stop()
+            exoPlayer.clearMediaItems()
+        } catch (_: Exception) {}
         activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
         viewModel.orientationMode.value = OrientationMode.SENSOR
         onBack()
@@ -303,17 +306,21 @@ fun ProVideoPlayer(
 
     // Apply Equalizer Preset
     LaunchedEffect(eqPreset, audioEqualizer) {
-        audioEqualizer?.applyPreset(eqPreset)
+        try {
+            audioEqualizer?.applyPreset(eqPreset)
+        } catch (_: Exception) {}
     }
 
     // Overall Composable Lifetime Cleanup (releases ExoPlayer ONLY on full screen exit)
     DisposableEffect(Unit) {
         activity?.window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         onDispose {
-            activity?.window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-            audioEnhancer?.release()
-            audioEqualizer?.release()
-            exoPlayer.release()
+            try {
+                activity?.window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                audioEnhancer?.release()
+                audioEqualizer?.release()
+                exoPlayer.release()
+            } catch (_: Exception) {}
         }
     }
 
@@ -348,7 +355,9 @@ fun ProVideoPlayer(
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context?, intent: Intent?) {
                 if (intent?.action == AudioManager.ACTION_AUDIO_BECOMING_NOISY) {
-                    exoPlayer.pause()
+                    try {
+                        exoPlayer.pause()
+                    } catch (_: Exception) {}
                 }
             }
         }
@@ -368,13 +377,17 @@ fun ProVideoPlayer(
         }
     }
 
-    // Bind ExoPlayer & Resume Position for Current Active Video (without releasing ExoPlayer)
+    // Bind ExoPlayer & Resume Position for Current Active Video (safely with try-catch)
     DisposableEffect(activeVideoFile.uri) {
-        val item = MediaItem.fromUri(activeVideoFile.uri)
-        exoPlayer.stop()
-        exoPlayer.clearMediaItems()
-        exoPlayer.setMediaItem(item)
-        exoPlayer.prepare()
+        try {
+            val item = MediaItem.fromUri(activeVideoFile.uri)
+            exoPlayer.stop()
+            exoPlayer.clearMediaItems()
+            exoPlayer.setMediaItem(item)
+            exoPlayer.prepare()
+        } catch (e: Exception) {
+            Toast.makeText(context, "Error loading video: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
 
         scope.launch {
             viewModel.markVideoOpened(activeVideoFile.uri.toString())
@@ -391,6 +404,10 @@ fun ProVideoPlayer(
         val listener = object : Player.Listener {
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 viewModel.isPlaying.value = isPlaying
+            }
+
+            override fun onPlayerError(error: PlaybackException) {
+                Toast.makeText(context, "Playback error: ${error.localizedMessage}", Toast.LENGTH_LONG).show()
             }
 
             override fun onVideoSizeChanged(videoSize: VideoSize) {
@@ -417,34 +434,42 @@ fun ProVideoPlayer(
             }
 
             override fun onAudioSessionIdChanged(audioSessionId: Int) {
-                audioEnhancer?.release()
-                audioEqualizer?.release()
-                audioEnhancer = SuperAudioEnhancer(audioSessionId)
-                audioEqualizer = SuperAudioEqualizer(audioSessionId).apply {
-                    applyPreset(viewModel.currentEqualizerPreset.value)
-                }
+                try {
+                    audioEnhancer?.release()
+                    audioEqualizer?.release()
+                    if (audioSessionId != 0 && audioSessionId != C.AUDIO_SESSION_ID_UNSET) {
+                        audioEnhancer = SuperAudioEnhancer(audioSessionId)
+                        audioEqualizer = SuperAudioEqualizer(audioSessionId).apply {
+                            applyPreset(viewModel.currentEqualizerPreset.value)
+                        }
+                    }
+                } catch (_: Exception) {}
             }
         }
         exoPlayer.addListener(listener)
 
         onDispose {
-            viewModel.savePosition(activeVideoFile.uri.toString(), exoPlayer.currentPosition)
-            exoPlayer.removeListener(listener)
+            try {
+                viewModel.savePosition(activeVideoFile.uri.toString(), exoPlayer.currentPosition)
+                exoPlayer.removeListener(listener)
+            } catch (_: Exception) {}
         }
     }
 
     // Position Tracking Coroutine & A-B Loop Enforcement
     LaunchedEffect(Unit) {
         while (true) {
-            viewModel.currentPosition.value = exoPlayer.currentPosition
-            viewModel.duration.value = exoPlayer.duration.coerceAtLeast(0L)
+            try {
+                viewModel.currentPosition.value = exoPlayer.currentPosition
+                viewModel.duration.value = exoPlayer.duration.coerceAtLeast(0L)
 
-            // Enforce A-B Loop
-            val a = abA
-            val b = abB
-            if ((a != null) && (b != null) && (exoPlayer.currentPosition >= b)) {
-                exoPlayer.seekTo(a)
-            }
+                // Enforce A-B Loop
+                val a = abA
+                val b = abB
+                if ((a != null) && (b != null) && (exoPlayer.currentPosition >= b)) {
+                    exoPlayer.seekTo(a)
+                }
+            } catch (_: Exception) {}
             delay(250)
         }
     }
