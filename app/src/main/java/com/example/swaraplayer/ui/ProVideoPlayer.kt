@@ -608,7 +608,7 @@ fun ProVideoPlayer(
                             }
                             GestureDirection.VERTICAL_RIGHT -> {
                                 val maxVol = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
-                                val newVolRatio = (startVolumeRatio - (totalDragY / height * 1.5f)).coerceIn(0f, 2.0f)
+                                val newVolRatio = (startVolumeRatio - (totalDragY / height * 1.2f)).coerceIn(0f, 1.5f)
 
                                 if (newVolRatio <= 1.0f) {
                                     val targetVol = (newVolRatio * maxVol).toInt().coerceIn(0, maxVol)
@@ -617,7 +617,7 @@ fun ProVideoPlayer(
                                     audioEnhancer?.setBoostRatio(1.0f)
                                     hudVolume = newVolRatio
                                 } else {
-                                    // +100% to +200% Super Audio Boost
+                                    // +100% to +150% Safe Super Audio Boost
                                     audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, maxVol, 0)
                                     viewModel.volumeBoost.value = newVolRatio
                                     audioEnhancer?.setBoostRatio(newVolRatio)
