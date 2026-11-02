@@ -285,7 +285,7 @@ fun RecentVideoCard(video: VideoItem, onClick: () -> Unit) {
                 modifier = Modifier.fillMaxSize(),
             )
 
-            // Frosted Dark Overlay with Centered Cyan Play Icon
+            // Frosted Dark Overlay with Centered Orange Play Icon
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -295,7 +295,7 @@ fun RecentVideoCard(video: VideoItem, onClick: () -> Unit) {
                 Icon(
                     imageVector = Icons.Default.PlayCircle,
                     contentDescription = null,
-                    tint = Color.Cyan,
+                    tint = colors.accentOrange,
                     modifier = Modifier.size(32.dp),
                 )
             }

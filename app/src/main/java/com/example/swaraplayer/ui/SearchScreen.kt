@@ -253,7 +253,7 @@ private fun SearchVideoResultItem(video: VideoFile, onClick: () -> Unit) {
                     .background(Color.Black.copy(alpha = 0.25f)),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(Icons.Default.PlayCircle, contentDescription = null, tint = Color.Cyan, modifier = Modifier.size(24.dp))
+                Icon(Icons.Default.PlayCircle, contentDescription = null, tint = colors.accentOrange, modifier = Modifier.size(24.dp))
             }
         }
 
