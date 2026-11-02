@@ -19,9 +19,11 @@ import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.annotation.OptIn
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.calculatePan
@@ -29,7 +31,6 @@ import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -73,6 +74,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -116,6 +118,7 @@ import com.example.swaraplayer.ui.components.VideoControlsOverlay
 import com.example.swaraplayer.ui.components.VideoMetadataDialog
 import com.example.swaraplayer.ui.components.VideoSettingsDrawer
 import com.example.swaraplayer.ui.components.formatTime
+import com.example.swaraplayer.ui.theme.LocalAppColors
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -134,6 +137,7 @@ fun ProVideoPlayer(
     val context = LocalContext.current
     val activity = context as? Activity
     val scope = rememberCoroutineScope()
+    val colors = LocalAppColors.current
 
     val videosList by viewModel.videosList.collectAsState()
     val selectedFolder by viewModel.selectedFolder.collectAsState()
@@ -218,6 +222,7 @@ fun ProVideoPlayer(
     var showRenameDialog by remember { mutableStateOf(false) }
     var showGesturesDialog by remember { mutableStateOf(false) }
     var resumeNoticeMs by remember { mutableLongStateOf(0L) }
+    var resumeTimerJob by remember { mutableStateOf<Job?>(null) }
 
     // Tap & Seek States
     var isLongPressBoosting by remember { mutableStateOf(false) }
@@ -307,6 +312,17 @@ fun ProVideoPlayer(
         try {
             audioEqualizer?.applyPreset(eqPreset)
         } catch (_: Exception) {}
+    }
+
+    // Auto-dismiss resume playback notification after 3 seconds
+    LaunchedEffect(resumeNoticeMs) {
+        if (resumeNoticeMs > 0L) {
+            resumeTimerJob?.cancel()
+            resumeTimerJob = scope.launch {
+                delay(3000L)
+                resumeNoticeMs = 0L
+            }
+        }
     }
 
     // Overall Composable Lifetime Cleanup (releases ExoPlayer ONLY on full screen exit)
@@ -546,9 +562,6 @@ fun ProVideoPlayer(
                         val startBrightnessVal = if ((lp?.screenBrightness ?: -1f) < 0) 0.5f else lp!!.screenBrightness
                         val startScrubPos = exoPlayer.currentPosition
 
-                        var totalDx = 0f
-                        var totalDy = 0f
-
                         while (true) {
                             val event = awaitPointerEvent()
                             val pointerCount = event.changes.size
@@ -644,13 +657,11 @@ fun ProVideoPlayer(
 
                             // Calculate Drag Delta
                             val dragDelta = change.position - startPos
-                            totalDx = dragDelta.x
-                            totalDy = dragDelta.y
 
                             // Check Directional Locking threshold (> touchSlop)
                             if (gestureType == GestureDirection.NONE) {
-                                if (abs(totalDx) > touchSlop || abs(totalDy) > touchSlop) {
-                                    gestureType = if (abs(totalDx) > abs(totalDy)) {
+                                if (abs(dragDelta.x) > touchSlop || abs(dragDelta.y) > touchSlop) {
+                                    gestureType = if (abs(dragDelta.x) > abs(dragDelta.y)) {
                                         GestureDirection.HORIZONTAL
                                     } else if (startPos.x < size.width / 2f) {
                                         GestureDirection.VERTICAL_LEFT
@@ -669,14 +680,14 @@ fun ProVideoPlayer(
                             // Execute Locked Direction Gesture
                             when (gestureType) {
                                 GestureDirection.HORIZONTAL -> {
-                                    val deltaMs = (totalDx / size.width * 120000f).toLong()
+                                    val deltaMs = (dragDelta.x / size.width * 120000f).toLong()
                                     val targetMs = (startScrubPos + deltaMs).coerceIn(0L, exoPlayer.duration.coerceAtLeast(0L))
                                     hudScrubDelta = targetMs - startScrubPos
                                     hudScrubTime = targetMs
                                     change.consume()
                                 }
                                 GestureDirection.VERTICAL_LEFT -> {
-                                    val newBri = (startBrightnessVal - (totalDy / size.height)).coerceIn(0.01f, 1.0f)
+                                    val newBri = (startBrightnessVal - (dragDelta.y / size.height)).coerceIn(0.01f, 1.0f)
                                     activity?.window?.let { window ->
                                         val lpWin = window.attributes
                                         lpWin.screenBrightness = newBri
@@ -686,7 +697,7 @@ fun ProVideoPlayer(
                                     change.consume()
                                 }
                                 GestureDirection.VERTICAL_RIGHT -> {
-                                    val newVolRatio = (startVolRatio - (totalDy / size.height * 1.2f)).coerceIn(0f, 1.5f)
+                                    val newVolRatio = (startVolRatio - (dragDelta.y / size.height * 1.2f)).coerceIn(0f, 1.5f)
                                     if (newVolRatio <= 1.0f) {
                                         val targetVol = (newVolRatio * maxVol).toInt().coerceIn(0, maxVol)
                                         audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, targetVol, 0)
@@ -715,35 +726,46 @@ fun ProVideoPlayer(
                 },
         )
 
-        // Floating Resume Snackbar Notice ("Resumed from 12:45 [Start Over]")
+        // Minimalist Floating Translucent Resume Notification Notice ("Resumed from 12:45   Start Over")
         AnimatedVisibility(
             visible = resumeNoticeMs > 0L,
-            enter = fadeIn(),
-            exit = fadeOut(),
+            enter = fadeIn(animationSpec = tween(250)),
+            exit = fadeOut(animationSpec = tween(200)),
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(bottom = 80.dp),
+                .padding(bottom = 88.dp),
         ) {
             Surface(
-                color = Color.Black.copy(alpha = 0.85f),
-                shape = RoundedCornerShape(20.dp),
+                color = Color.Black.copy(alpha = 0.55f),
+                shape = RoundedCornerShape(12.dp),
+                shadowElevation = 0.dp,
+                modifier = Modifier.clickable(enabled = false) {}, // Intercept clicks so touches don't pass through to player gestures
             ) {
                 Row(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text("Resumed from ${formatTime(resumeNoticeMs)}", color = Color.White, fontSize = 12.sp)
-                    Spacer(Modifier.width(12.dp))
-                    Button(
-                        onClick = {
-                            exoPlayer.seekTo(0L)
-                            resumeNoticeMs = 0L
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color.Cyan),
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
-                    ) {
-                        Text("Start Over", color = Color.Black, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                    }
+                    Text(
+                        text = "Resumed from ${formatTime(resumeNoticeMs)}",
+                        color = Color.White,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = "Start Over",
+                        color = colors.accentOrange,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .clickable {
+                                resumeTimerJob?.cancel()
+                                exoPlayer.seekTo(0L)
+                                resumeNoticeMs = 0L
+                            }
+                            .padding(horizontal = 6.dp, vertical = 2.dp),
+                    )
                 }
             }
         }
