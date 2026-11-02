@@ -9,11 +9,14 @@ import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
 import android.util.Size
+import androidx.annotation.OptIn
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
 import androidx.palette.graphics.Palette
 import com.example.swaraplayer.data.Album
 import com.example.swaraplayer.data.Artist
@@ -95,6 +98,8 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     val audioRepeatMode = MutableStateFlow(AudioRepeatMode.OFF)
 
     private var audioPlayerRef: Player? = null
+    private var musicAudioEqualizer: SuperAudioEqualizer? = null
+    private var musicAudioEnhancer: SuperAudioEnhancer? = null
 
     val subtitleStyle = MutableStateFlow(SubtitleStyle())
     val audioTracksList = MutableStateFlow<List<TrackOption>>(emptyList())
@@ -302,9 +307,23 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    @OptIn(UnstableApi::class)
     fun bindAudioPlayer(player: Player) {
         this.audioPlayerRef = player
         player.addListener(object : Player.Listener {
+            override fun onAudioSessionIdChanged(audioSessionId: Int) {
+                try {
+                    if (audioSessionId != 0 && audioSessionId != C.AUDIO_SESSION_ID_UNSET) {
+                        musicAudioEqualizer?.release()
+                        musicAudioEnhancer?.release()
+                        musicAudioEqualizer = SuperAudioEqualizer(audioSessionId).apply {
+                            applyPreset(currentEqualizerPreset.value)
+                        }
+                        musicAudioEnhancer = SuperAudioEnhancer(audioSessionId)
+                    }
+                } catch (_: Exception) {}
+            }
+
             override fun onIsPlayingChanged(playing: Boolean) {
                 isAudioPlaying.value = playing
             }
@@ -325,6 +344,15 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                 }
             }
         })
+
+        // Collect and apply EQ preset changes to music player in real-time
+        viewModelScope.launch {
+            currentEqualizerPreset.collect { preset ->
+                try {
+                    musicAudioEqualizer?.applyPreset(preset)
+                } catch (_: Exception) {}
+            }
+        }
     }
 
     fun scanLocalVideos() {

@@ -1,6 +1,9 @@
 package com.example.swaraplayer.ui
 
+import android.content.Context
 import android.content.Intent
+import android.media.AudioDeviceInfo
+import android.media.AudioManager
 import android.provider.Settings
 import android.widget.Toast
 import androidx.compose.foundation.background
@@ -28,6 +31,7 @@ import androidx.compose.material.icons.filled.Equalizer
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.GraphicEq
+import androidx.compose.material.icons.filled.Headphones
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
@@ -103,6 +107,11 @@ fun ExpandedPlayerScreen(
     val metadata = remember(track) { PlayerViewModel.sanitizeTrackMetadata(track) }
     val isFav = favoriteTrackIds.contains(track.id)
 
+    // Dynamic Audio Output Device Detection (Bluetooth / Headphones / Speaker)
+    val audioOutputName = remember(currentTrack) { getActiveAudioOutputDevice(context) }
+    val isHeadset = audioOutputName != "Phone Speaker"
+    val outputIcon = if (isHeadset) Icons.Default.Headphones else Icons.Default.SpeakerGroup
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -138,7 +147,7 @@ fun ExpandedPlayerScreen(
                                 val intent = Intent(Settings.ACTION_SOUND_SETTINGS)
                                 context.startActivity(intent)
                             } catch (_: Exception) {
-                                Toast.makeText(context, "Audio Output: Phone Speaker", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "Audio Output: $audioOutputName", Toast.LENGTH_SHORT).show()
                             }
                         },
                     ) {
@@ -150,7 +159,7 @@ fun ExpandedPlayerScreen(
                             letterSpacing = 1.sp,
                         )
                         Text(
-                            text = "Phone Speaker",
+                            text = audioOutputName,
                             color = colors.accentOrange,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.SemiBold,
@@ -177,9 +186,9 @@ fun ExpandedPlayerScreen(
                 }
             },
             bottomBar = {
-                // Bottom Output Speaker Bar
+                // Bottom Output Speaker Bar (Theme Adaptive Surface)
                 Surface(
-                    color = Color(0xFF23232C),
+                    color = colors.surface.copy(alpha = 0.85f),
                     shape = RoundedCornerShape(20.dp),
                     modifier = Modifier
                         .fillMaxWidth()
@@ -207,13 +216,13 @@ fun ExpandedPlayerScreen(
                                     val intent = Intent(Settings.ACTION_SOUND_SETTINGS)
                                     context.startActivity(intent)
                                 } catch (_: Exception) {
-                                    Toast.makeText(context, "Audio Output: Phone Speaker", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, "Audio Output: $audioOutputName", Toast.LENGTH_SHORT).show()
                                 }
                             },
                         ) {
-                            Icon(Icons.Default.SpeakerGroup, contentDescription = null, tint = colors.accentOrange, modifier = Modifier.size(18.dp))
+                            Icon(outputIcon, contentDescription = null, tint = colors.accentOrange, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Phone Speaker", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                            Text(audioOutputName, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                         }
 
                         Icon(Icons.AutoMirrored.Filled.QueueMusic, contentDescription = "Queue", tint = colors.accentOrange)
@@ -254,7 +263,7 @@ fun ExpandedPlayerScreen(
                     modifier = Modifier.padding(vertical = 4.dp),
                 ) {
                     Surface(
-                        color = Color(0xFF2E2E38),
+                        color = colors.surface.copy(alpha = 0.85f),
                         shape = RoundedCornerShape(20.dp),
                         modifier = Modifier.clickable { showEqDialog = true },
                     ) {
@@ -269,7 +278,7 @@ fun ExpandedPlayerScreen(
                     }
 
                     Surface(
-                        color = Color(0xFF2E2E38),
+                        color = colors.surface.copy(alpha = 0.85f),
                         shape = RoundedCornerShape(20.dp),
                         modifier = Modifier.clickable {
                             viewModel.cycleSleepTimer()
@@ -397,12 +406,12 @@ fun ExpandedPlayerScreen(
     if (showEqDialog) {
         AlertDialog(
             onDismissRequest = { showEqDialog = false },
-            containerColor = Color(0xFF1E1E2C),
+            containerColor = colors.surface,
             title = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.Equalizer, contentDescription = null, tint = colors.accentOrange)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Equalizer Presets", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                    Text("Equalizer Presets", color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 18.sp)
                 }
             },
             text = {
@@ -432,7 +441,7 @@ fun ExpandedPlayerScreen(
                                 colors = RadioButtonDefaults.colors(selectedColor = colors.accentOrange, unselectedColor = Color.Gray),
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text(preset.label, color = if (isSelected) colors.accentOrange else Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                            Text(preset.label, color = if (isSelected) colors.accentOrange else colors.textPrimary, fontSize = 14.sp, fontWeight = FontWeight.Medium)
                         }
                     }
                 }
@@ -452,5 +461,25 @@ fun ExpandedPlayerScreen(
             metadata = metadata,
             onDismiss = { showXRayDialog = false },
         )
+    }
+}
+
+private fun getActiveAudioOutputDevice(context: Context): String {
+    return try {
+        val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        val devices = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
+        for (device in devices) {
+            when (device.type) {
+                AudioDeviceInfo.TYPE_BLUETOOTH_A2DP,
+                AudioDeviceInfo.TYPE_BLUETOOTH_SCO,
+                AudioDeviceInfo.TYPE_BLE_HEADSET -> return "Bluetooth Headset"
+                AudioDeviceInfo.TYPE_WIRED_HEADSET,
+                AudioDeviceInfo.TYPE_WIRED_HEADPHONES,
+                AudioDeviceInfo.TYPE_USB_HEADSET -> return "Wired Headphones"
+            }
+        }
+        "Phone Speaker"
+    } catch (_: Exception) {
+        "Phone Speaker"
     }
 }
