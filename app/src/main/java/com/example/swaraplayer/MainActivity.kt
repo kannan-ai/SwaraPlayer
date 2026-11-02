@@ -255,7 +255,15 @@ class MainActivity : ComponentActivity() {
                                 video = activeVideo!!,
                                 viewModel = viewModel,
                                 onImportExternalSubtitle = {
-                                    externalSubtitleLauncher.launch(arrayOf("*/*"))
+                                    externalSubtitleLauncher.launch(
+                                        arrayOf(
+                                            "application/x-subrip",
+                                            "text/vtt",
+                                            "text/plain",
+                                            "application/octet-stream",
+                                            "*/*",
+                                        ),
+                                    )
                                 },
                                 onBack = { activeVideo = null },
                             )
