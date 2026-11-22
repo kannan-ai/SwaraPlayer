@@ -23,8 +23,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -469,7 +469,7 @@ private fun AlbumDetailScreen(
                 }
             }
 
-            items(album.tracks, key = { it.id }) { track ->
+            itemsIndexed(album.tracks, key = { idx, track -> "${track.id}_$idx" }) { _, track ->
                 AudioTrackListItem(
                     track = track,
                     isPlayingTrack = currentTrack?.id == track.id,
@@ -546,7 +546,7 @@ private fun ArtistDetailScreen(
                 )
             }
 
-            items(artist.tracks, key = { it.id }) { track ->
+            itemsIndexed(artist.tracks, key = { idx, track -> "${track.id}_$idx" }) { _, track ->
                 AudioTrackListItem(
                     track = track,
                     isPlayingTrack = currentTrack?.id == track.id,
@@ -623,7 +623,7 @@ private fun AudioFolderDetailScreen(
                 )
             }
 
-            items(folder.tracks, key = { it.id }) { track ->
+            itemsIndexed(folder.tracks, key = { idx, track -> "${track.id}_$idx" }) { _, track ->
                 AudioTrackListItem(
                     track = track,
                     isPlayingTrack = currentTrack?.id == track.id,
@@ -670,7 +670,7 @@ private fun SongsTabContent(
                 )
             }
 
-            items(audioTracks, key = { it.id }) { track ->
+            itemsIndexed(audioTracks, key = { idx, track -> "${track.id}_$idx" }) { _, track ->
                 AudioTrackListItem(
                     track = track,
                     isPlayingTrack = currentTrack?.id == track.id,
@@ -855,7 +855,7 @@ private fun ArtistsTabContent(
             contentPadding = PaddingValues(bottom = 80.dp),
             modifier = Modifier.fillMaxSize(),
         ) {
-            items(artists, key = { it.name }) { artist ->
+            itemsIndexed(artists, key = { idx, artist -> "${artist.name}_$idx" }) { _, artist ->
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -921,7 +921,7 @@ private fun AlbumsTabContent(
             verticalArrangement = Arrangement.spacedBy(16.dp),
             modifier = Modifier.fillMaxSize(),
         ) {
-            items(albums, key = { "${it.id}_${it.title}" }) { album ->
+            itemsIndexed(albums, key = { idx, album -> "${album.id}_${album.title}_${album.artist}_$idx" }) { _, album ->
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -990,7 +990,7 @@ private fun FoldersTabContent(
             verticalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier.fillMaxSize(),
         ) {
-            items(folders, key = { it.name }) { folder ->
+            itemsIndexed(folders, key = { idx, folder -> "${folder.id}_$idx" }) { _, folder ->
                 val sizeMbFormatted = String.format(Locale.US, "%.1f MB", folder.totalSizeBytes / (1024f * 1024f))
 
                 Row(
