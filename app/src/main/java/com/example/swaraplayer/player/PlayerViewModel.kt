@@ -8,6 +8,7 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
+import android.util.Log
 import android.util.Size
 import androidx.annotation.OptIn
 import androidx.compose.ui.graphics.Color
@@ -15,6 +16,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.palette.graphics.Palette
@@ -372,6 +374,10 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                 isAudioPlaying.value = playing
             }
 
+            override fun onPlayerError(error: PlaybackException) {
+                Log.e("PlayerViewModel", "Music Player error: ${error.message}", error)
+            }
+
             override fun onPlaybackStateChanged(playbackState: Int) {
                 if (playbackState == Player.STATE_READY) {
                     audioDuration.value = player.duration.coerceAtLeast(0L)
@@ -496,6 +502,8 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                 MediaStore.Audio.Media.ALBUM_ID,
                 MediaStore.Audio.Media.DURATION,
                 MediaStore.Audio.Media.SIZE,
+                MediaStore.Audio.Media.MIME_TYPE,
+                MediaStore.Audio.Media.DISPLAY_NAME,
                 MediaStore.Audio.Media.DATA,
             )
 
@@ -514,6 +522,8 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                 val albumIdCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM_ID)
                 val durCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
                 val sizeCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.SIZE)
+                val mimeCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.MIME_TYPE)
+                val nameCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DISPLAY_NAME)
                 val dataCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATA)
 
                 while (cursor.moveToNext()) {
@@ -528,7 +538,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                     audioFiles.add(
                         MediaFile(
                             id = id,
-                            title = cursor.getString(titleCol) ?: "Audio Track",
+                            title = cursor.getString(titleCol) ?: cursor.getString(nameCol) ?: "Audio Track",
                             artist = cursor.getString(artistCol) ?: "Unknown Artist",
                             album = cursor.getString(albumCol) ?: "Unknown Album",
                             durationMs = cursor.getLong(durCol),
@@ -537,6 +547,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                             albumId = albumId,
                             sizeBytes = cursor.getLong(sizeCol),
                             path = cursor.getString(dataCol) ?: "",
+                            mimeType = cursor.getString(mimeCol) ?: "audio/mp3",
                         ),
                     )
                 }
@@ -790,23 +801,39 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
 
     companion object {
         fun sanitizeTrackMetadata(file: MediaFile?): SanitizedMetadata {
-            if (file == null) return SanitizedMetadata("Unknown Track", "Unknown Artist", "Unknown Album", "MP3", "320 kbps", "44100 Hz", "00:00", "")
+            if (file == null) return SanitizedMetadata("Unknown Track", "Unknown Artist", "Unknown Album", "AUDIO", "320 kbps", "44100 Hz", "00:00", "")
 
-            var title = file.title.replace(Regex("(?i)\\.(mp3|m4a|flac|wav|aac|ogg)$"), "").replace('_', ' ')
+            var title = file.title.replace(Regex("(?i)\\.(mp3|m4a|flac|wav|aac|ogg|opus|amr|wma|ac3|eac3|dts|mid|midi|ape|dsf|dff)$"), "").replace('_', ' ')
             val parts = title.split('-').map { it.trim() }
 
             val cleanTitle = if (parts.size >= 2) parts.last() else title
-            val cleanTitleFinal = cleanTitle.replace(Regex("(?i)\\b(320kbps|128kbps|official|lyrics|hd|4k|mp3)\\b"), "")
+            val cleanTitleFinal = cleanTitle.replace(Regex("(?i)\\b(320kbps|128kbps|official|lyrics|hd|4k|mp3|flac|wav)\\b"), "")
                 .replace(Regex("[\\[\\]()]"), " ").trim()
 
             val artist = if (file.artist.isNotBlank() && file.artist != "<unknown>") file.artist
             else if (parts.size >= 2) parts.first() else "Unknown Artist"
 
+            val ext = if (file.path.contains('.')) file.path.substringAfterLast('.').uppercase() else ""
+            val formatLabel = when {
+                ext.isNotBlank() -> ext
+                file.mimeType.contains("flac", ignoreCase = true) -> "FLAC"
+                file.mimeType.contains("mpeg", ignoreCase = true) || file.mimeType.contains("mp3", ignoreCase = true) -> "MP3"
+                file.mimeType.contains("aac", ignoreCase = true) -> "AAC"
+                file.mimeType.contains("wav", ignoreCase = true) -> "WAV"
+                file.mimeType.contains("ogg", ignoreCase = true) -> "OGG"
+                file.mimeType.contains("opus", ignoreCase = true) -> "OPUS"
+                file.mimeType.contains("amr", ignoreCase = true) -> "AMR"
+                file.mimeType.contains("wma", ignoreCase = true) -> "WMA"
+                file.mimeType.contains("ac3", ignoreCase = true) -> "AC3"
+                file.mimeType.contains("dts", ignoreCase = true) -> "DTS"
+                else -> "AUDIO"
+            }
+
             return SanitizedMetadata(
-                cleanTitle = if (cleanTitleFinal.isNotBlank()) cleanTitleFinal else file.title,
+                cleanTitle = cleanTitleFinal.ifBlank { file.title },
                 cleanArtist = artist,
                 cleanAlbum = file.album,
-                fileFormat = if (file.path.contains('.')) file.path.substringAfterLast('.').uppercase() else "MP3",
+                fileFormat = formatLabel,
                 bitrateFormatted = "${file.bitrateKbps} kbps",
                 sampleRateFormatted = "${file.sampleRateHz} Hz",
                 durationFormatted = formatTime(file.durationMs),
