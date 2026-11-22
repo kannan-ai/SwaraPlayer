@@ -558,12 +558,15 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                 Artist(name = name, trackCount = tracks.size, tracks = tracks)
             }.sortedBy { it.name }
 
-            albums.value = audioFiles.groupBy { Pair(it.album, it.artist) }.map { (key, tracks) ->
+            albums.value = audioFiles.groupBy {
+                if (it.albumId > 0) "id_${it.albumId}" else "name_${it.album.lowercase().trim()}"
+            }.map { (_, tracks) ->
                 val first = tracks.first()
+                val primaryArtist = tracks.map { it.artist }.find { it.isNotBlank() && it != "Unknown Artist" } ?: first.artist
                 Album(
                     id = first.albumId,
-                    title = key.first,
-                    artist = key.second,
+                    title = first.album.ifBlank { "Unknown Album" },
+                    artist = primaryArtist,
                     albumArtUri = first.albumArtUri,
                     trackCount = tracks.size,
                     tracks = tracks,
