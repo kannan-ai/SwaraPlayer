@@ -101,7 +101,7 @@
                 <data android:mimeType="audio/*" />
             </intent-filter>
 
-            <!-- Intent Filter 5: Direct File Extensions for Audio -->
+            <!-- Intent Filter 5: Direct File Extensions for All Audio Formats -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -115,6 +115,14 @@
                 <data android:pathPattern=".*\\.wav" />
                 <data android:pathPattern=".*\\.aac" />
                 <data android:pathPattern=".*\\.ogg" />
+                <data android:pathPattern=".*\\.opus" />
+                <data android:pathPattern=".*\\.amr" />
+                <data android:pathPattern=".*\\.wma" />
+                <data android:pathPattern=".*\\.ac3" />
+                <data android:pathPattern=".*\\.eac3" />
+                <data android:pathPattern=".*\\.dts" />
+                <data android:pathPattern=".*\\.mid" />
+                <data android:pathPattern=".*\\.midi" />
             </intent-filter>
 
             <!-- Intent Filter 6: Receive Shared Audio ("Share via...") -->
