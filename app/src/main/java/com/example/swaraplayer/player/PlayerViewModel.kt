@@ -21,6 +21,7 @@ import androidx.palette.graphics.Palette
 import com.example.swaraplayer.data.Album
 import com.example.swaraplayer.data.Artist
 import com.example.swaraplayer.data.AspectRatioMode
+import com.example.swaraplayer.data.AudioFolder
 import com.example.swaraplayer.data.AudioPreset
 import com.example.swaraplayer.data.AudioRepeatMode
 import com.example.swaraplayer.data.MediaFile
@@ -87,6 +88,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     // Audio / Music Player State
     val audioList = MutableStateFlow<List<MediaFile>>(emptyList())
     val currentAudioPlaylist = MutableStateFlow<List<MediaFile>>(emptyList())
+    val audioFolders = MutableStateFlow<List<AudioFolder>>(emptyList())
     val artists = MutableStateFlow<List<Artist>>(emptyList())
     val albums = MutableStateFlow<List<Album>>(emptyList())
     val currentAudioTrack = MutableStateFlow<MediaFile?>(null)
@@ -153,6 +155,47 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
             putExtra(Intent.EXTRA_TEXT, "Listening to '${track.title}' by ${track.artist} on Swara Player 🎵")
         }
         context.startActivity(Intent.createChooser(intent, "Share Song"))
+    }
+
+    fun playNextTrack(track: MediaFile) {
+        audioPlayerRef?.let { p ->
+            val mediaItem = MediaItem.fromUri(track.uri)
+            val nextIndex = (p.currentMediaItemIndex + 1).coerceAtMost(p.mediaItemCount)
+            p.addMediaItem(nextIndex, mediaItem)
+        }
+    }
+
+    fun addToQueue(track: MediaFile) {
+        audioPlayerRef?.let { p ->
+            p.addMediaItem(MediaItem.fromUri(track.uri))
+        }
+    }
+
+    fun deleteSingleAudio(context: Context, track: MediaFile) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                context.contentResolver.delete(track.uri, null, null)
+            } catch (_: Exception) {}
+            scanLocalAudioTracks()
+        }
+    }
+
+    fun moveSelectedAudioToFolder(context: Context, targetFolderName: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val selectedTracks = audioList.value.filter { selectedAudioIds.value.contains(it.id) }
+            selectedTracks.forEach { track ->
+                try {
+                    val values = ContentValues().apply {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                            put(MediaStore.Audio.Media.RELATIVE_PATH, "Music/$targetFolderName")
+                        }
+                    }
+                    context.contentResolver.update(track.uri, values, null, null)
+                } catch (_: Exception) {}
+            }
+            clearSelections()
+            scanLocalAudioTracks()
+        }
     }
 
     fun toggleFavoriteTrack(trackId: Long) {
@@ -502,12 +545,36 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
 
             artists.value = audioFiles.groupBy { it.artist }.map { (name, tracks) ->
                 Artist(name = name, trackCount = tracks.size, tracks = tracks)
+            }.sortedBy { it.name }
+
+            albums.value = audioFiles.groupBy { Pair(it.album, it.artist) }.map { (key, tracks) ->
+                val first = tracks.first()
+                Album(
+                    id = first.albumId,
+                    title = key.first,
+                    artist = key.second,
+                    albumArtUri = first.albumArtUri,
+                    trackCount = tracks.size,
+                    tracks = tracks,
+                )
+            }.sortedBy { it.title }
+
+            val audioFoldersMap = audioFiles.groupBy { file ->
+                if (file.path.isNotBlank() && file.path.contains('/')) {
+                    file.path.substringBeforeLast('/').substringAfterLast('/')
+                } else {
+                    "Internal Storage"
+                }
             }
 
-            albums.value = audioFiles.groupBy { it.album }.map { (albumTitle, tracks) ->
-                val first = tracks.first()
-                Album(id = first.albumId, title = albumTitle, artist = first.artist, albumArtUri = first.albumArtUri, trackCount = tracks.size, tracks = tracks)
-            }
+            audioFolders.value = audioFoldersMap.map { (folderName, tracks) ->
+                AudioFolder(
+                    name = folderName,
+                    trackCount = tracks.size,
+                    totalSizeBytes = tracks.sumOf { it.sizeBytes },
+                    tracks = tracks,
+                )
+            }.sortedBy { it.name }
 
             if (currentAudioTrack.value == null && audioFiles.isNotEmpty()) {
                 currentAudioTrack.value = audioFiles.first()

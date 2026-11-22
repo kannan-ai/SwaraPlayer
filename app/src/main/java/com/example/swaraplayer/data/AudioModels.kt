@@ -34,6 +34,13 @@ data class Album(
     val tracks: List<MediaFile> = emptyList(),
 )
 
+data class AudioFolder(
+    val name: String,
+    val trackCount: Int,
+    val totalSizeBytes: Long,
+    val tracks: List<MediaFile> = emptyList(),
+)
+
 data class SanitizedMetadata(
     val cleanTitle: String,
     val cleanArtist: String,

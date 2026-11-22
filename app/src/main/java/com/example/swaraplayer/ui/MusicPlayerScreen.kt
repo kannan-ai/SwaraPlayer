@@ -29,12 +29,19 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Queue
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
@@ -64,6 +71,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.swaraplayer.data.Album
 import com.example.swaraplayer.data.Artist
+import com.example.swaraplayer.data.AudioFolder
 import com.example.swaraplayer.data.MediaFile
 import com.example.swaraplayer.player.PlayerViewModel
 import com.example.swaraplayer.ui.components.AudioThumbnailImage
@@ -84,6 +92,7 @@ fun MusicPlayerScreen(
     val context = LocalContext.current
     val colors = LocalAppColors.current
     val audioTracks by viewModel.audioList.collectAsState()
+    val audioFolders by viewModel.audioFolders.collectAsState()
     val artistsList by viewModel.artists.collectAsState()
     val albumsList by viewModel.albums.collectAsState()
     val currentTrack by viewModel.currentAudioTrack.collectAsState()
@@ -94,6 +103,7 @@ fun MusicPlayerScreen(
     var selectedTab by remember { mutableIntStateOf(0) } // 0: Songs, 1: Artists, 2: Albums, 3: Folders
     var selectedAlbum by remember { mutableStateOf<Album?>(null) }
     var selectedArtist by remember { mutableStateOf<Artist?>(null) }
+    var selectedAudioFolder by remember { mutableStateOf<AudioFolder?>(null) }
     var showMoveDialog by remember { mutableStateOf(false) }
     var isSearching by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
@@ -115,6 +125,7 @@ fun MusicPlayerScreen(
             currentTrack = currentTrack,
             selectedAudioIds = selectedAudioIds,
             isSelectionMode = isSelectionMode,
+            viewModel = viewModel,
             onToggleSelect = { id -> viewModel.toggleAudioSelection(id) },
             onTrackClick = { track ->
                 viewModel.playAudioTrack(track, playlist = selectedAlbum!!.tracks, context = context)
@@ -136,12 +147,35 @@ fun MusicPlayerScreen(
             currentTrack = currentTrack,
             selectedAudioIds = selectedAudioIds,
             isSelectionMode = isSelectionMode,
+            viewModel = viewModel,
             onToggleSelect = { id -> viewModel.toggleAudioSelection(id) },
             onTrackClick = { track ->
                 viewModel.playAudioTrack(track, playlist = selectedArtist!!.tracks, context = context)
                 onOpenExpandedPlayer()
             },
             onBack = { selectedArtist = null },
+        )
+        return
+    }
+
+    // Detail View: Audio Folder Tracks
+    if (selectedAudioFolder != null) {
+        BackHandler(enabled = true) {
+            selectedAudioFolder = null
+        }
+
+        AudioFolderDetailScreen(
+            folder = selectedAudioFolder!!,
+            currentTrack = currentTrack,
+            selectedAudioIds = selectedAudioIds,
+            isSelectionMode = isSelectionMode,
+            viewModel = viewModel,
+            onToggleSelect = { id -> viewModel.toggleAudioSelection(id) },
+            onTrackClick = { track ->
+                viewModel.playAudioTrack(track, playlist = selectedAudioFolder!!.tracks, context = context)
+                onOpenExpandedPlayer()
+            },
+            onBack = { selectedAudioFolder = null },
         )
         return
     }
@@ -298,6 +332,7 @@ fun MusicPlayerScreen(
                     currentTrack = currentTrack,
                     selectedAudioIds = selectedAudioIds,
                     isSelectionMode = isSelectionMode,
+                    viewModel = viewModel,
                     onToggleSelect = { id -> viewModel.toggleAudioSelection(id) },
                     onTrackClick = { track ->
                         viewModel.playAudioTrack(track, playlist = filteredAudioTracks, context = context)
@@ -313,8 +348,8 @@ fun MusicPlayerScreen(
                     onAlbumClick = { album -> selectedAlbum = album },
                 )
                 3 -> FoldersTabContent(
-                    folders = listOf("Music"),
-                    onFolderClick = {},
+                    folders = audioFolders,
+                    onFolderClick = { folder -> selectedAudioFolder = folder },
                 )
             }
         }
@@ -322,10 +357,10 @@ fun MusicPlayerScreen(
 
     if (showMoveDialog) {
         MoveToFolderDialog(
-            foldersList = listOf("Music", "Downloads", "Audiobooks", "Podcasts"),
+            foldersList = audioFolders.map { it.name }.ifEmpty { listOf("Music", "Downloads", "Audiobooks", "Podcasts") },
             onMoveConfirm = { targetFolder ->
-                Toast.makeText(context, "${selectedAudioIds.size} tracks moved to '$targetFolder'", Toast.LENGTH_SHORT).show()
-                viewModel.clearSelections()
+                viewModel.moveSelectedAudioToFolder(context, targetFolder)
+                Toast.makeText(context, "${selectedAudioIds.size} tracks moving to '$targetFolder'", Toast.LENGTH_SHORT).show()
                 showMoveDialog = false
             },
             onDismiss = { showMoveDialog = false },
@@ -339,6 +374,7 @@ private fun AlbumDetailScreen(
     currentTrack: MediaFile?,
     selectedAudioIds: Set<Long>,
     isSelectionMode: Boolean,
+    viewModel: PlayerViewModel,
     onToggleSelect: (Long) -> Unit,
     onTrackClick: (MediaFile) -> Unit,
     onBack: () -> Unit,
@@ -433,12 +469,14 @@ private fun AlbumDetailScreen(
                 }
             }
 
-            items(album.tracks) { track ->
+            items(album.tracks, key = { it.id }) { track ->
                 AudioTrackListItem(
                     track = track,
                     isPlayingTrack = currentTrack?.id == track.id,
                     isSelected = selectedAudioIds.contains(track.id),
                     isSelectionMode = isSelectionMode,
+                    viewModel = viewModel,
+                    activePlaylist = album.tracks,
                     onToggleSelect = onToggleSelect,
                     onClick = { onTrackClick(track) },
                 )
@@ -453,6 +491,7 @@ private fun ArtistDetailScreen(
     currentTrack: MediaFile?,
     selectedAudioIds: Set<Long>,
     isSelectionMode: Boolean,
+    viewModel: PlayerViewModel,
     onToggleSelect: (Long) -> Unit,
     onTrackClick: (MediaFile) -> Unit,
     onBack: () -> Unit,
@@ -507,12 +546,91 @@ private fun ArtistDetailScreen(
                 )
             }
 
-            items(artist.tracks) { track ->
+            items(artist.tracks, key = { it.id }) { track ->
                 AudioTrackListItem(
                     track = track,
                     isPlayingTrack = currentTrack?.id == track.id,
                     isSelected = selectedAudioIds.contains(track.id),
                     isSelectionMode = isSelectionMode,
+                    viewModel = viewModel,
+                    activePlaylist = artist.tracks,
+                    onToggleSelect = onToggleSelect,
+                    onClick = { onTrackClick(track) },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun AudioFolderDetailScreen(
+    folder: AudioFolder,
+    currentTrack: MediaFile?,
+    selectedAudioIds: Set<Long>,
+    isSelectionMode: Boolean,
+    viewModel: PlayerViewModel,
+    onToggleSelect: (Long) -> Unit,
+    onTrackClick: (MediaFile) -> Unit,
+    onBack: () -> Unit,
+) {
+    val colors = LocalAppColors.current
+
+    Scaffold(
+        topBar = {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(colors.background)
+                    .statusBarsPadding()
+                    .padding(horizontal = 8.dp, vertical = 6.dp)
+                    .height(40.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                IconButton(onClick = onBack, modifier = Modifier.size(32.dp)) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Back",
+                        tint = colors.textPrimary,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+                Text(
+                    text = folder.name,
+                    color = colors.textPrimary,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(start = 8.dp),
+                )
+            }
+        },
+        containerColor = colors.background,
+    ) { innerPadding ->
+        LazyColumn(
+            contentPadding = PaddingValues(bottom = 80.dp),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding),
+        ) {
+            item {
+                Text(
+                    text = "${folder.name} (${folder.trackCount} Songs)",
+                    color = colors.accentOrange,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 12.dp),
+                )
+            }
+
+            items(folder.tracks, key = { it.id }) { track ->
+                AudioTrackListItem(
+                    track = track,
+                    isPlayingTrack = currentTrack?.id == track.id,
+                    isSelected = selectedAudioIds.contains(track.id),
+                    isSelectionMode = isSelectionMode,
+                    viewModel = viewModel,
+                    activePlaylist = folder.tracks,
                     onToggleSelect = onToggleSelect,
                     onClick = { onTrackClick(track) },
                 )
@@ -527,6 +645,7 @@ private fun SongsTabContent(
     currentTrack: MediaFile?,
     selectedAudioIds: Set<Long>,
     isSelectionMode: Boolean,
+    viewModel: PlayerViewModel,
     onToggleSelect: (Long) -> Unit,
     onTrackClick: (MediaFile) -> Unit,
 ) {
@@ -551,12 +670,14 @@ private fun SongsTabContent(
                 )
             }
 
-            items(audioTracks) { track ->
+            items(audioTracks, key = { it.id }) { track ->
                 AudioTrackListItem(
                     track = track,
                     isPlayingTrack = currentTrack?.id == track.id,
                     isSelected = selectedAudioIds.contains(track.id),
                     isSelectionMode = isSelectionMode,
+                    viewModel = viewModel,
+                    activePlaylist = audioTracks,
                     onToggleSelect = onToggleSelect,
                     onClick = { onTrackClick(track) },
                 )
@@ -572,11 +693,15 @@ private fun AudioTrackListItem(
     isPlayingTrack: Boolean,
     isSelected: Boolean,
     isSelectionMode: Boolean,
+    viewModel: PlayerViewModel,
+    activePlaylist: List<MediaFile>,
     onToggleSelect: (Long) -> Unit,
     onClick: () -> Unit,
 ) {
+    val context = LocalContext.current
     val colors = LocalAppColors.current
     val sizeMbFormatted = String.format(Locale.US, "%.1f MB", track.sizeBytes / (1024f * 1024f))
+    var showTrackMenu by remember { mutableStateOf(false) }
 
     Row(
         modifier = Modifier
@@ -650,12 +775,67 @@ private fun AudioTrackListItem(
             }
         }
 
-        Icon(
-            imageVector = Icons.Default.MoreVert,
-            contentDescription = "Options",
-            tint = colors.textSecondary,
-            modifier = Modifier.size(18.dp),
-        )
+        // Active Track Options Menu
+        Box {
+            IconButton(onClick = { showTrackMenu = true }, modifier = Modifier.size(32.dp)) {
+                Icon(
+                    imageVector = Icons.Default.MoreVert,
+                    contentDescription = "Options",
+                    tint = colors.textSecondary,
+                    modifier = Modifier.size(18.dp),
+                )
+            }
+
+            DropdownMenu(
+                expanded = showTrackMenu,
+                onDismissRequest = { showTrackMenu = false },
+                modifier = Modifier.background(colors.surface),
+            ) {
+                DropdownMenuItem(
+                    text = { Text("Play", color = colors.textPrimary, fontSize = 13.sp) },
+                    leadingIcon = { Icon(Icons.Default.PlayArrow, contentDescription = null, tint = colors.accentOrange, modifier = Modifier.size(18.dp)) },
+                    onClick = {
+                        viewModel.playAudioTrack(track, playlist = activePlaylist, context = context)
+                        showTrackMenu = false
+                    },
+                )
+                DropdownMenuItem(
+                    text = { Text("Play Next", color = colors.textPrimary, fontSize = 13.sp) },
+                    leadingIcon = { Icon(Icons.AutoMirrored.Filled.QueueMusic, contentDescription = null, tint = colors.textPrimary, modifier = Modifier.size(18.dp)) },
+                    onClick = {
+                        viewModel.playNextTrack(track)
+                        Toast.makeText(context, "Playing next: ${track.title}", Toast.LENGTH_SHORT).show()
+                        showTrackMenu = false
+                    },
+                )
+                DropdownMenuItem(
+                    text = { Text("Add to Queue", color = colors.textPrimary, fontSize = 13.sp) },
+                    leadingIcon = { Icon(Icons.Default.Queue, contentDescription = null, tint = colors.textPrimary, modifier = Modifier.size(18.dp)) },
+                    onClick = {
+                        viewModel.addToQueue(track)
+                        Toast.makeText(context, "Added to queue: ${track.title}", Toast.LENGTH_SHORT).show()
+                        showTrackMenu = false
+                    },
+                )
+                DropdownMenuItem(
+                    text = { Text("Share", color = colors.textPrimary, fontSize = 13.sp) },
+                    leadingIcon = { Icon(Icons.Default.Share, contentDescription = null, tint = colors.textPrimary, modifier = Modifier.size(18.dp)) },
+                    onClick = {
+                        viewModel.shareTrack(context, track)
+                        showTrackMenu = false
+                    },
+                )
+                DropdownMenuItem(
+                    text = { Text("Delete", color = colors.textPrimary, fontSize = 13.sp) },
+                    leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, tint = colors.badgeRed, modifier = Modifier.size(18.dp)) },
+                    onClick = {
+                        viewModel.deleteSingleAudio(context, track)
+                        Toast.makeText(context, "Deleted: ${track.title}", Toast.LENGTH_SHORT).show()
+                        showTrackMenu = false
+                    },
+                )
+            }
+        }
     }
 }
 
@@ -675,7 +855,7 @@ private fun ArtistsTabContent(
             contentPadding = PaddingValues(bottom = 80.dp),
             modifier = Modifier.fillMaxSize(),
         ) {
-            items(artists) { artist ->
+            items(artists, key = { it.name }) { artist ->
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -741,7 +921,7 @@ private fun AlbumsTabContent(
             verticalArrangement = Arrangement.spacedBy(16.dp),
             modifier = Modifier.fillMaxSize(),
         ) {
-            items(albums) { album ->
+            items(albums, key = { "${it.id}_${it.title}" }) { album ->
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -795,39 +975,54 @@ private fun AlbumsTabContent(
 
 @Composable
 private fun FoldersTabContent(
-    folders: List<String>,
-    onFolderClick: (String) -> Unit,
+    folders: List<AudioFolder>,
+    onFolderClick: (AudioFolder) -> Unit,
 ) {
     val colors = LocalAppColors.current
 
-    LazyColumn(
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-        modifier = Modifier.fillMaxSize(),
-    ) {
-        items(folders) { folder ->
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(colors.surface)
-                    .clickable { onFolderClick(folder) }
-                    .padding(horizontal = 16.dp, vertical = 14.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Folder,
-                    contentDescription = null,
-                    tint = colors.accentOrange,
-                    modifier = Modifier.size(32.dp),
-                )
-                Spacer(modifier = Modifier.width(16.dp))
-                Text(
-                    text = folder,
-                    color = colors.textPrimary,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold,
-                )
+    if (folders.isEmpty()) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text("No audio folders found", color = colors.textSecondary, fontSize = 14.sp)
+        }
+    } else {
+        LazyColumn(
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.fillMaxSize(),
+        ) {
+            items(folders, key = { it.name }) { folder ->
+                val sizeMbFormatted = String.format(Locale.US, "%.1f MB", folder.totalSizeBytes / (1024f * 1024f))
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(colors.surface)
+                        .clickable { onFolderClick(folder) }
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Folder,
+                        contentDescription = null,
+                        tint = colors.accentOrange,
+                        modifier = Modifier.size(32.dp),
+                    )
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Column {
+                        Text(
+                            text = folder.name,
+                            color = colors.textPrimary,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        Text(
+                            text = "${folder.trackCount} Songs • $sizeMbFormatted",
+                            color = colors.textSecondary,
+                            fontSize = 12.sp,
+                        )
+                    }
+                }
             }
         }
     }
