@@ -547,7 +547,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                             albumId = albumId,
                             sizeBytes = cursor.getLong(sizeCol),
                             path = cursor.getString(dataCol) ?: "",
-                            mimeType = cursor.getString(mimeCol) ?: "audio/mp3",
+                            mimeType = cursor.getString(mimeCol),
                         ),
                     )
                 }
@@ -572,15 +572,18 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
 
             val audioFoldersMap = audioFiles.groupBy { file ->
                 if (file.path.isNotBlank() && file.path.contains('/')) {
-                    file.path.substringBeforeLast('/').substringAfterLast('/')
+                    file.path.substringBeforeLast('/')
                 } else {
                     "Internal Storage"
                 }
             }
 
-            audioFolders.value = audioFoldersMap.map { (folderName, tracks) ->
+            audioFolders.value = audioFoldersMap.map { (fullPath, tracks) ->
+                val folderName = if (fullPath.contains('/')) fullPath.substringAfterLast('/') else fullPath
                 AudioFolder(
+                    id = fullPath,
                     name = folderName,
+                    path = fullPath,
                     trackCount = tracks.size,
                     totalSizeBytes = tracks.sumOf { it.sizeBytes },
                     tracks = tracks,
@@ -801,7 +804,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
 
     companion object {
         fun sanitizeTrackMetadata(file: MediaFile?): SanitizedMetadata {
-            if (file == null) return SanitizedMetadata("Unknown Track", "Unknown Artist", "Unknown Album", "AUDIO", "320 kbps", "44100 Hz", "00:00", "")
+            if (file == null) return SanitizedMetadata("Unknown Track", "Unknown Artist", "Unknown Album", "AUDIO", "Unknown", "Unknown", "00:00", "")
 
             var title = file.title.replace(Regex("(?i)\\.(mp3|m4a|flac|wav|aac|ogg|opus|amr|wma|ac3|eac3|dts|mid|midi|ape|dsf|dff)$"), "").replace('_', ' ')
             val parts = title.split('-').map { it.trim() }
@@ -814,28 +817,32 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
             else if (parts.size >= 2) parts.first() else "Unknown Artist"
 
             val ext = if (file.path.contains('.')) file.path.substringAfterLast('.').uppercase() else ""
+            val mime = file.mimeType?.lowercase() ?: ""
             val formatLabel = when {
                 ext.isNotBlank() -> ext
-                file.mimeType.contains("flac", ignoreCase = true) -> "FLAC"
-                file.mimeType.contains("mpeg", ignoreCase = true) || file.mimeType.contains("mp3", ignoreCase = true) -> "MP3"
-                file.mimeType.contains("aac", ignoreCase = true) -> "AAC"
-                file.mimeType.contains("wav", ignoreCase = true) -> "WAV"
-                file.mimeType.contains("ogg", ignoreCase = true) -> "OGG"
-                file.mimeType.contains("opus", ignoreCase = true) -> "OPUS"
-                file.mimeType.contains("amr", ignoreCase = true) -> "AMR"
-                file.mimeType.contains("wma", ignoreCase = true) -> "WMA"
-                file.mimeType.contains("ac3", ignoreCase = true) -> "AC3"
-                file.mimeType.contains("dts", ignoreCase = true) -> "DTS"
+                mime.contains("flac") -> "FLAC"
+                mime.contains("mpeg") || mime.contains("mp3") -> "MP3"
+                mime.contains("aac") -> "AAC"
+                mime.contains("wav") -> "WAV"
+                mime.contains("ogg") -> "OGG"
+                mime.contains("opus") -> "OPUS"
+                mime.contains("amr") -> "AMR"
+                mime.contains("wma") -> "WMA"
+                mime.contains("ac3") -> "AC3"
+                mime.contains("dts") -> "DTS"
                 else -> "AUDIO"
             }
+
+            val bitrateStr = if (file.bitrateKbps != null && file.bitrateKbps > 0) "${file.bitrateKbps} kbps" else "Unknown"
+            val sampleRateStr = if (file.sampleRateHz != null && file.sampleRateHz > 0) "${file.sampleRateHz} Hz" else "Unknown"
 
             return SanitizedMetadata(
                 cleanTitle = cleanTitleFinal.ifBlank { file.title },
                 cleanArtist = artist,
                 cleanAlbum = file.album,
                 fileFormat = formatLabel,
-                bitrateFormatted = "${file.bitrateKbps} kbps",
-                sampleRateFormatted = "${file.sampleRateHz} Hz",
+                bitrateFormatted = bitrateStr,
+                sampleRateFormatted = sampleRateStr,
                 durationFormatted = formatTime(file.durationMs),
                 filePath = file.path,
             )

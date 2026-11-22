@@ -13,9 +13,9 @@ data class MediaFile(
     val albumId: Long = 0L,
     val sizeBytes: Long = 0L,
     val path: String = "",
-    val bitrateKbps: Int = 320,
-    val sampleRateHz: Int = 44100,
-    val mimeType: String = "audio/mp3",
+    val bitrateKbps: Int? = null,
+    val sampleRateHz: Int? = null,
+    val mimeType: String? = null,
 )
 
 data class Artist(
@@ -35,7 +35,9 @@ data class Album(
 )
 
 data class AudioFolder(
+    val id: String,
     val name: String,
+    val path: String = "",
     val trackCount: Int,
     val totalSizeBytes: Long,
     val tracks: List<MediaFile> = emptyList(),
