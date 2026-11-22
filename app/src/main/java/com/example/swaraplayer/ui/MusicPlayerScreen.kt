@@ -31,7 +31,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
@@ -118,7 +117,7 @@ fun MusicPlayerScreen(
             isSelectionMode = isSelectionMode,
             onToggleSelect = { id -> viewModel.toggleAudioSelection(id) },
             onTrackClick = { track ->
-                viewModel.playAudioTrack(track, context)
+                viewModel.playAudioTrack(track, playlist = selectedAlbum!!.tracks, context = context)
                 onOpenExpandedPlayer()
             },
             onBack = { selectedAlbum = null },
@@ -139,7 +138,7 @@ fun MusicPlayerScreen(
             isSelectionMode = isSelectionMode,
             onToggleSelect = { id -> viewModel.toggleAudioSelection(id) },
             onTrackClick = { track ->
-                viewModel.playAudioTrack(track, context)
+                viewModel.playAudioTrack(track, playlist = selectedArtist!!.tracks, context = context)
                 onOpenExpandedPlayer()
             },
             onBack = { selectedArtist = null },
@@ -301,7 +300,7 @@ fun MusicPlayerScreen(
                     isSelectionMode = isSelectionMode,
                     onToggleSelect = { id -> viewModel.toggleAudioSelection(id) },
                     onTrackClick = { track ->
-                        viewModel.playAudioTrack(track, context)
+                        viewModel.playAudioTrack(track, playlist = filteredAudioTracks, context = context)
                         onOpenExpandedPlayer()
                     },
                 )

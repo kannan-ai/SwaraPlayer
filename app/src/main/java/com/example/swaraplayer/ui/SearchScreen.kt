@@ -209,7 +209,7 @@ fun SearchScreen(
                             SearchSongResultItem(
                                 song = song,
                                 onClick = {
-                                    viewModel.playAudioTrack(song, context)
+                                    viewModel.playAudioTrack(song, playlist = matchingAudio, context = context)
                                     onOpenExpandedPlayer()
                                 },
                             )

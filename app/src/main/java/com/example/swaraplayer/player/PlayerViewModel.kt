@@ -86,6 +86,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
 
     // Audio / Music Player State
     val audioList = MutableStateFlow<List<MediaFile>>(emptyList())
+    val currentAudioPlaylist = MutableStateFlow<List<MediaFile>>(emptyList())
     val artists = MutableStateFlow<List<Artist>>(emptyList())
     val albums = MutableStateFlow<List<Album>>(emptyList())
     val currentAudioTrack = MutableStateFlow<MediaFile?>(null)
@@ -336,7 +337,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
 
             override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
                 if (mediaItem != null) {
-                    val tracks = audioList.value
+                    val tracks = currentAudioPlaylist.value.ifEmpty { audioList.value }
                     val activeTrack = tracks.find { it.uri.toString() == mediaItem.localConfiguration?.uri?.toString() }
                     if (activeTrack != null) {
                         currentAudioTrack.value = activeTrack
@@ -511,21 +512,24 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
             if (currentAudioTrack.value == null && audioFiles.isNotEmpty()) {
                 currentAudioTrack.value = audioFiles.first()
                 audioDuration.value = audioFiles.first().durationMs
+                currentAudioPlaylist.value = audioFiles
             }
         }
     }
 
-    fun playAudioTrack(track: MediaFile, context: Context? = null) {
+    fun playAudioTrack(track: MediaFile, playlist: List<MediaFile>? = null, context: Context? = null) {
         currentAudioTrack.value = track
         audioDuration.value = track.durationMs
         audioCurrentPosition.value = 0L
         isAudioPlaying.value = true
 
+        val activeQueue = if (!playlist.isNullOrEmpty()) playlist else audioList.value
+        currentAudioPlaylist.value = activeQueue
+
         audioPlayerRef?.let { p ->
-            val tracks = audioList.value
-            if (tracks.isNotEmpty()) {
-                val mediaItems = tracks.map { MediaItem.fromUri(it.uri) }
-                val startIndex = tracks.indexOfFirst { it.id == track.id }.coerceAtLeast(0)
+            if (activeQueue.isNotEmpty()) {
+                val mediaItems = activeQueue.map { MediaItem.fromUri(it.uri) }
+                val startIndex = activeQueue.indexOfFirst { it.id == track.id }.coerceAtLeast(0)
                 p.setMediaItems(mediaItems, startIndex, 0L)
             } else {
                 p.setMediaItem(MediaItem.fromUri(track.uri))
@@ -590,11 +594,11 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
             if (p.hasNextMediaItem()) {
                 p.seekToNextMediaItem()
             } else {
-                val tracks = audioList.value
+                val tracks = currentAudioPlaylist.value.ifEmpty { audioList.value }
                 if (tracks.isEmpty()) return
                 val curr = currentAudioTrack.value
                 val nextIndex = if (curr != null) (tracks.indexOf(curr) + 1) % tracks.size else 0
-                playAudioTrack(tracks[nextIndex])
+                playAudioTrack(tracks[nextIndex], playlist = tracks)
             }
         }
     }
@@ -604,11 +608,11 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
             if (p.hasPreviousMediaItem()) {
                 p.seekToPreviousMediaItem()
             } else {
-                val tracks = audioList.value
+                val tracks = currentAudioPlaylist.value.ifEmpty { audioList.value }
                 if (tracks.isEmpty()) return
                 val curr = currentAudioTrack.value
                 val prevIndex = if (curr != null) (tracks.indexOf(curr) - 1 + tracks.size) % tracks.size else 0
-                playAudioTrack(tracks[prevIndex])
+                playAudioTrack(tracks[prevIndex], playlist = tracks)
             }
         }
     }
